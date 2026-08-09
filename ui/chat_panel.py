@@ -162,9 +162,7 @@ Ask me anything about
 
         self.chat_box.insert(
             "end",
-            "🤖 JARVIS is analyzing your memories...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🤖 JARVIS is analyzing your memories...━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         )
 
         self.chat_box.see("end")
