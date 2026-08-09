@@ -179,46 +179,46 @@ Ask me anything about
 
     def get_answer(self, question):
 
-    answer = ask_jarvis(question)
+        answer = ask_jarvis(question)
 
-    answer = format_response(answer)
+        answer = format_response(answer)
 
-    print("=" * 50)
-    print(answer)
-    print("=" * 50)
+        print("=" * 50)
+        print(answer)
+        print("=" * 50)
 
-    def update():
+        def update():
 
-        self.chat_box.configure(state="normal")
+            self.chat_box.configure(state="normal")
 
-        content = self.chat_box.get("1.0", "end")
+            content = self.chat_box.get("1.0", "end")
 
-        content = content.replace(
-            "🤖 JARVIS is analyzing your memories...\n\n",
-            ""
-        )
+            content = content.replace(
+                "🤖 JARVIS is analyzing your memories...\n\n",
+                ""
+            )
 
-        self.chat_box.delete("1.0", "end")
+            self.chat_box.delete("1.0", "end")
 
-        self.chat_box.insert("1.0", content)
+            self.chat_box.insert("1.0", content)
 
-        self.chat_box.insert(
-            "end",
-            f"""
+            self.chat_box.insert(
+                "end",
+                f"""
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 JARVIS
+    🤖 JARVIS
 
-{answer}
+    {answer}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-"""
-        )
+    """
+            )
 
-        self.chat_box.see("end")
+            self.chat_box.see("end")
 
-        self.chat_box.configure(state="disabled")
+            self.chat_box.configure(state="disabled")
 
-    self.after(0, update)
+        self.after(0, update)
