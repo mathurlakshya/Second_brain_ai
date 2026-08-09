@@ -79,24 +79,24 @@ class ChatPanel(ctk.CTkFrame):
             "end",
             "🤖 JARVIS"
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Welcome back.
+            Welcome back.
 
-I'm connected to your Second Brain.
+            I'm connected to your Second Brain.
 
-Ask me anything about
+            Ask me anything about
 
-🧠 your memories
+            🧠 your memories
 
-💻 your coding
+            💻 your coding
 
-📂 documents
+            📂 documents
 
-📸 screenshots
+            📸 screenshots
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        )
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                    )
 
         self.chat_box.configure(state="disabled")
 
