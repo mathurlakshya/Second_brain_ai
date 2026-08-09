@@ -77,7 +77,7 @@ class ChatPanel(ctk.CTkFrame):
 
         self.chat_box.insert(
             "end",
-            "🤖 JARVIS
+            "🤖 JARVIS"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
