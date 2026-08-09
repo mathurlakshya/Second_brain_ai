@@ -2,6 +2,39 @@ import customtkinter as ctk
 import threading
 from ai.gemini import ask_jarvis
 
+def format_response(text):
+
+    replacements = {
+
+        "# Summary": "🧠 SUMMARY",
+        "# Error": "❌ ERROR",
+        "# Recommendation": "💡 RECOMMENDATION",
+        "# Code": "💻 CODE",
+        "# File": "📄 FILE",
+        "# Commands": "⌨️ COMMANDS",
+        "# Notes": "📝 NOTES",
+        "# Important": "⚠ IMPORTANT",
+
+        "##": "",
+        "###": ""
+    }
+
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+    text = text.replace("**", "")
+
+    text = text.replace(
+        "```python",
+        "\n────────────────────────────\n🐍 Python Code\n────────────────────────────\n"
+    )
+
+    text = text.replace(
+        "```",
+        "\n────────────────────────────\n"
+    )
+
+    return text
 
 class ChatPanel(ctk.CTkFrame):
 
@@ -29,7 +62,11 @@ class ChatPanel(ctk.CTkFrame):
             border_width=1
         )
         self.chat_box.configure(
-            font=("Segoe UI", 15)
+
+            font=("Segoe UI Variable",16),
+
+            wrap="word"
+
         )
         self.chat_box.pack(
             fill="both",
@@ -40,7 +77,25 @@ class ChatPanel(ctk.CTkFrame):
 
         self.chat_box.insert(
             "end",
-            "🧠 JARVIS:\nHello! I'm your AI assistant.\n\n"
+            "🤖 JARVIS
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Welcome back.
+
+I'm connected to your Second Brain.
+
+Ask me anything about
+
+🧠 your memories
+
+💻 your coding
+
+📂 documents
+
+📸 screenshots
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         )
 
         self.chat_box.configure(state="disabled")
@@ -90,13 +145,26 @@ class ChatPanel(ctk.CTkFrame):
         self.chat_box.configure(state="normal")
 
         self.chat_box.insert(
+
             "end",
-            f"👤 You:\n{question}\n\n"
+
+            "\n"
+
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+
+            "👤 YOU\n\n"
+
+            f"{question}\n"
+
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
         )
 
         self.chat_box.insert(
             "end",
-            "🧠 JARVIS is thinking...\n\n"
+            "🤖 JARVIS is analyzing your memories...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         )
 
         self.chat_box.see("end")
@@ -115,6 +183,8 @@ class ChatPanel(ctk.CTkFrame):
 
         answer = ask_jarvis(question)
 
+        answer = format_response(answer)
+
         def update():
 
             self.chat_box.configure(state="normal")
@@ -126,10 +196,17 @@ class ChatPanel(ctk.CTkFrame):
             self.chat_box.delete("1.0", "end")
             self.chat_box.insert("1.0", content)
 
-            self.chat_box.insert(
-                "end",
-                f"🧠 JARVIS:\n{answer}\n\n"
-            )
+            f"""
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤖 JARVIS
+
+{answer}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"""
 
             self.chat_box.see("end")
 
