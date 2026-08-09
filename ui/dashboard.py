@@ -418,7 +418,11 @@ class Dashboard(ctk.CTkFrame):
 
             self.after(
                 0,
-                lambda: self.floating.update_app(app,title)
+                lambda: (
+                    self.floating.update_app(app, title)
+                    if self.floating is not None
+                    else None
+                )
             )
     # ---------------------------------------------------
     # RECENT ACTIVITY

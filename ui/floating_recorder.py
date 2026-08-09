@@ -70,11 +70,13 @@ class FloatingRecorder(ctk.CTkToplevel):
         stop_btn.pack(pady=(0,8))
     def update_app(self, app, title):
 
-        text = f"{app}\n{title[:30]}"
+        text = f"{app}\n{title}"
 
-        self.current_app.configure(
-            text=text
-        )
+        try:
+            if self.current_app.winfo_exists():
+                self.current_app.configure(text=text)
+        except Exception:
+            pass
 
     def stop(self):
 
