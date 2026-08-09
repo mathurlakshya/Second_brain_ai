@@ -200,4 +200,11 @@ Ask me anything about
 
             self.chat_box.configure(state="disabled")
 
-        self.after(0, update)
+            self.after(0, update)
+
+        '''answer = ask_jarvis(question)
+
+        print("=" * 50)
+        print("JARVIS RESPONSE:")
+        print(answer)
+        print("=" * 50)'''
