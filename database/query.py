@@ -8,23 +8,21 @@ def get_recent_memories(limit=200):
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT
 
-timestamp,
-
-app_name,
-
-window_title,
-
-summary,
-
-ocr_text
+SELECT
+    timestamp,
+    app_name,
+    window_title,
+    summary,
+    ocr_text
 
 FROM memories
 
 ORDER BY id DESC
 
-LIMIT 50""", (limit,))
+LIMIT 50
+
+""")
 
     rows = cursor.fetchall()
 
