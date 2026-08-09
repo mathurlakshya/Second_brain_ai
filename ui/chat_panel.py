@@ -202,9 +202,9 @@ Ask me anything about
 
             self.after(0, update)
 
-        '''answer = ask_jarvis(question)
+        answer = ask_jarvis(question)
 
         print("=" * 50)
         print("JARVIS RESPONSE:")
         print(answer)
-        print("=" * 50)'''
+        print("=" * 50)
