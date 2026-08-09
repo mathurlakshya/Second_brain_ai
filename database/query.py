@@ -9,15 +9,22 @@ def get_recent_memories(limit=200):
 
     cursor.execute("""
         SELECT
-            timestamp,
-            app_name,
-            window_title,
-            screenshot,
-            summary
-        FROM memories
-        ORDER BY id DESC
-        LIMIT ?
-    """, (limit,))
+
+timestamp,
+
+app_name,
+
+window_title,
+
+summary,
+
+ocr_text
+
+FROM memories
+
+ORDER BY id DESC
+
+LIMIT 50""", (limit,))
 
     rows = cursor.fetchall()
 

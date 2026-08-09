@@ -106,3 +106,49 @@ def get_all_memories():
     conn.close()
 
     return rows
+
+def search_memories(query):
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+
+        SELECT
+            app_name,
+            window_title,
+            timestamp,
+            summary,
+            ocr_text,
+            screenshot
+
+        FROM memories
+
+        WHERE
+
+            app_name LIKE ?
+
+            OR window_title LIKE ?
+
+            OR summary LIKE ?
+
+            OR ocr_text LIKE ?
+
+        ORDER BY id DESC
+
+        LIMIT 10
+
+    """, (
+
+        f"%{query}%",
+        f"%{query}%",
+        f"%{query}%",
+        f"%{query}%"
+
+    ))
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return rows    

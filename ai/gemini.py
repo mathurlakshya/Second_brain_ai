@@ -129,40 +129,47 @@ def summarize_screen(image_path):
             model=modell,
 
             contents=[
+
                 image,
                 """
-You are JARVIS, an AI Memory Assistant.
+You are the visual memory system of an AI assistant.
 
-This summary will be stored forever inside the user's Second Brain.
+Your job is NOT to summarize.
 
-Carefully inspect EVERYTHING visible on the screen.
+Instead, record EVERYTHING visible.
 
-Describe:
+Return the response exactly in this format:
 
-1. Which application is open.
-2. What the user is currently doing.
-3. If code is visible:
-   - programming language
-   - filename
-   - function/class names
-4. If terminal is visible:
-   - important commands
-   - outputs
-5. If an error is visible:
-   - copy the EXACT error message
-   - explain what probably caused it
-6. If documentation or YouTube is open:
-   - explain the topic
-7. Mention the user's likely goal.
+APPLICATION:
+<application>
 
-Write a professional summary of about 150–250 words.
+WINDOW:
+<window title>
 
-If an error is present, always include:
+FULL_SCREEN_TEXT:
+Copy ALL visible text exactly as it appears.
+Do not summarize.
+Include documents, browser pages, code, terminal output, buttons, headings,
+paragraphs, menus, filenames, URLs, errors, numbers,
+and anything readable.
 
-ERROR DETECTED:
-<exact error>
+VISIBLE_CODE:
+If code exists,
+copy the important code exactly.
 
-This summary will later be searched by AI.
+VISIBLE_TERMINAL:
+Copy terminal commands and outputs exactly.
+
+ERRORS:
+Copy every visible error message exactly.
+
+OBJECTS:
+Describe important visible objects.
+
+SUMMARY:
+Short summary (2-3 lines only).
+
+This information will be stored forever in memory.This summary will later be searched by AI.
 """
             ]
         )
@@ -277,14 +284,29 @@ def ask_memory_chat(question):
 
     memory_text = ""
 
-    for time, app, title, *_ in memories:
+    for time, app, title, summary, ocr in memories:
 
-        memory_text += f"""
-    Time: {time}
-    App: {app}
-    Title: {title}
+      memory_text += f"""
 
-    """
+        ========================
+
+        Time: {time}
+
+        Application: {app}
+
+        Window: {title}
+
+        Summary:
+
+        {summary}
+
+        Everything Visible On Screen:
+
+        {ocr}
+
+        ========================
+
+        """
 
     global MEMORY_CHAT_HISTORY
     global modell
@@ -303,9 +325,27 @@ Below are memories collected from the user's computer.
 Each memory contains:
 
 • Timestamp
+
 • Application
+
 • Window Title
-• AI-generated Summary
+
+• Summary
+
+• Everything that was visible on the screen
+
+The OCR text contains documents, browser pages, code, terminal output,
+PDFs, emails, notes, filenames, URLs and anything readable.
+
+Use BOTH the summaries and OCR text to answer.
+
+If the answer exists anywhere inside OCR,
+quote the relevant part.
+
+If multiple memories contain pieces of the answer,
+combine them.
+
+Never ignore OCR text.
 
 Use ONLY these memories to answer the user's question.
 
@@ -346,7 +386,7 @@ Give a detailed, easy-to-read answer.
         ("JARVIS", answer)
     )
 
-    if len(MEMORY_CHAT_HISTORY) > 20:
-     MEMORY_CHAT_HISTORY = MEMORY_CHAT_HISTORY[-20:]
+    if len(MEMORY_CHAT_HISTORY) > 100:
+     MEMORY_CHAT_HISTORY = MEMORY_CHAT_HISTORY[-100:]
 
     return answer 

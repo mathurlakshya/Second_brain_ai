@@ -46,7 +46,10 @@ class MemoryRecorder:
                 now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 screenshot_path = capture_screen()
-                summary = summarize_screen(screenshot_path)
+                memory = summarize_screen(screenshot_path)
+
+                summary = memory
+                ocr_text = memory
 
                 contains_error = 0
                 error_text = ""
@@ -81,6 +84,7 @@ class MemoryRecorder:
                     now,
                     screenshot_path,
                     summary,
+                    ocr_text,
                     contains_error,
                     error_text
                 )
