@@ -162,7 +162,7 @@ Ask me anything about
 
         self.chat_box.insert(
             "end",
-            " 🤖 JARVIS is analyzing your memories...━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            " 🤖 JARVIS is thinking...━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         )
 
         self.chat_box.see("end")
@@ -194,17 +194,7 @@ Ask me anything about
             self.chat_box.delete("1.0", "end")
             self.chat_box.insert("1.0", content)
 
-            f"""
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🤖 JARVIS
-
-{answer}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-"""
+            f"🧠 JARVIS:\n{answer}\n\n"
 
             self.chat_box.see("end")
 
