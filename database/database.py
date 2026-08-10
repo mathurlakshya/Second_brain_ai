@@ -4,14 +4,14 @@ DB_NAME = "second_brain.db"
 
 
 def save_memory(
-    app_name,
-    window_title,
-    timestamp,
-    screenshot="",
-    summary="",
-    ocr_text="",
-    contains_error=0,
-    error_text=""
+    app,
+    title,
+    now,
+    screenshot_path,
+    summary,
+    ocr_text,
+    contains_error,
+    error_text
 ):
 
     conn = sqlite3.connect(DB_NAME)

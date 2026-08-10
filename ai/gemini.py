@@ -118,7 +118,7 @@ This analysis will later be used to answer user questions.
     except Exception as e:
         return f"Vision Error: {e}"
     
-def summarize_screen(image_path):
+def summarize_screen(image_path, ocr_text=""):
     global modell
     try:
 
@@ -132,45 +132,37 @@ def summarize_screen(image_path):
 
                 image,
                 """
-You are the visual memory system of an AI assistant.
+You are JARVIS.
 
-Your job is NOT to summarize.
+Below is OCR text extracted from the screenshot.
 
-Instead, record EVERYTHING visible.
+Use BOTH
 
-Return the response exactly in this format:
+1. Screenshot
 
-APPLICATION:
-<application>
+2. OCR text
 
-WINDOW:
-<window title>
+to produce the most accurate summary.
 
-FULL_SCREEN_TEXT:
-Copy ALL visible text exactly as it appears.
-Do not summarize.
-Include documents, browser pages, code, terminal output, buttons, headings,
-paragraphs, menus, filenames, URLs, errors, numbers,
-and anything readable.
+OCR:
 
-VISIBLE_CODE:
-If code exists,
-copy the important code exactly.
+{ocr_text}
 
-VISIBLE_TERMINAL:
-Copy terminal commands and outputs exactly.
+Explain
 
-ERRORS:
-Copy every visible error message exactly.
+• What document is open
 
-OBJECTS:
-Describe important visible objects.
+• What coding task is happening
 
-SUMMARY:
-Short summary (2-3 lines only).
+• What topic is being studied
 
-This information will be stored forever in memory.This summary will later be searched by AI.
-"""
+• Any important code
+
+• Any errors
+
+• Important facts
+
+Keep it concise."""
             ]
         )
 
@@ -288,23 +280,19 @@ def ask_memory_chat(question):
 
       memory_text += f"""
 
-        ========================
-
         Time: {time}
 
         Application: {app}
 
-        Window: {title}
+        Title: {title}
 
         Summary:
 
         {summary}
 
-        Everything Visible On Screen:
+        Screen Text:
 
         {ocr}
-
-        ========================
 
         """
 

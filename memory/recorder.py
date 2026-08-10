@@ -5,7 +5,7 @@ import datetime
 import time
 from vision.screenshot import capture_screen
 from ai.gemini import summarize_screen
-
+from vision.ocr import extract_text
 from database.database import save_memory
 
 
@@ -46,10 +46,13 @@ class MemoryRecorder:
                 now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                 screenshot_path = capture_screen()
-                memory = summarize_screen(screenshot_path)
 
-                summary = memory
-                ocr_text = memory
+                ocr_text = extract_text(screenshot_path)
+
+                summary = summarize_screen(
+                    screenshot_path,
+                    ocr_text
+                )
 
                 contains_error = 0
                 error_text = ""
