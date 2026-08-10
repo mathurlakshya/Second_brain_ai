@@ -54,15 +54,10 @@ class SettingsPage(ctk.CTkFrame):
 
 Version 1.0
 
-Built using:
-
-• Python
-• CustomTkinter
-• SQLite
-• Google Gemini
-• MSS Screenshot API
-
-Competition Version
+JARVIS is an intelligent desktop assistant designed to remember, understand, and organize your digital activities. 
+It continuously captures your workflow, recognizes on-screen content, and builds a searchable memory of your work, allowing you to retrieve past information using simple natural language. 
+Whether you're coding, researching, studying, or managing documents, JARVIS helps you instantly recall what you've seen, learned, or worked on—so you can focus on creating instead of remembering. 
+Built with privacy and productivity at its core, JARVIS transforms your computer into a smart, context-aware workspace that evolves with you.
 """
         )
 
