@@ -3,9 +3,9 @@ import sqlite3
 conn = sqlite3.connect("second_brain.db")
 cursor = conn.cursor()
 
-cursor.execute("PRAGMA table_info(memories)")
+cursor.execute("ALTER TABLE memories ADD COLUMN embedding TEXT")
 
-for row in cursor.fetchall():
-    print(row)
-
+conn.commit()
 conn.close()
+
+print("Done")
