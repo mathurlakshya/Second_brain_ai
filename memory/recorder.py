@@ -7,7 +7,7 @@ from vision.screenshot import capture_screen
 from ai.gemini import summarize_screen
 from vision.ocr import extract_text
 from database.database import save_memory
-
+from ai.embeddings import create_embedding
 
 class MemoryRecorder:
 
@@ -80,6 +80,10 @@ class MemoryRecorder:
                         error_text = summary
 
                         break
+                
+                combined = summary + "\n" + ocr_text
+
+                embedding = create_embedding(combined)
 
                 save_memory(
                     app,
@@ -89,7 +93,9 @@ class MemoryRecorder:
                     summary,
                     ocr_text,
                     contains_error,
-                    error_text
+                    error_text,
+                    combined,
+                    embedding
                 )
                 if self.callback:
                  self.callback(app, title, now)

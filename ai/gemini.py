@@ -272,7 +272,9 @@ Question:
 
 def ask_memory_chat(question):
     
-    memories = get_recent_memories()
+    from database.semantic_search import semantic_search
+
+    memories = semantic_search(question)
 
     memory_text = ""
 
@@ -349,9 +351,15 @@ Previous Conversation:
 
 {history}
 
-Recorded Memories:
+Relevant Memories:
 
 {memory_text}
+
+These memories were selected using semantic similarity.
+
+They are already the most relevant memories.
+
+Use them to answer accurately.
 
 User Question:
 
