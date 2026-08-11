@@ -92,10 +92,10 @@ class MemoryRecorder:
                     screenshot_path,
                     summary,
                     ocr_text,
+                    embedding,
                     contains_error,
                     error_text,
-                    combined,
-                    embedding
+                    
                 )
                 if self.callback:
                  self.callback(app, title, now)

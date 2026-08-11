@@ -34,7 +34,7 @@ def save_memory(
             error_text
         )
 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
     """, (
 
         app_name,
@@ -43,7 +43,7 @@ def save_memory(
         screenshot,
         summary,
         ocr_text,
-        embedding,
+        json.dumps(embedding),
         contains_error,
         error_text
 
