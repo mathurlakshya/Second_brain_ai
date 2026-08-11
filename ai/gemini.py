@@ -278,7 +278,7 @@ def ask_memory_chat(question):
 
     memory_text = ""
 
-    for time, app, title, summary, ocr in memories:
+    for score, time, app, title, summary, ocr in memories:
 
       memory_text += f"""
 
