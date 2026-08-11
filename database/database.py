@@ -1,8 +1,7 @@
-import sqlite3
 import json
+import sqlite3
 
 DB_NAME = "second_brain.db"
-
 
 def save_memory(
     app,
@@ -18,8 +17,8 @@ def save_memory(
 
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    
-    embedding = json.dumps(embedding)
+
+    embedding_json = json.dumps(embedding)
 
     cursor.execute("""
         INSERT INTO memories(
@@ -34,16 +33,16 @@ def save_memory(
             error_text
         )
 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?,?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
 
-        app_name,
-        window_title,
-        timestamp,
-        screenshot,
+        app,
+        title,
+        now,
+        screenshot_path,
         summary,
         ocr_text,
-        json.dumps(embedding),
+        embedding_json,
         contains_error,
         error_text
 
@@ -51,8 +50,7 @@ def save_memory(
 
     conn.commit()
     conn.close()
-
-
+    
 def create_database():
 
     conn = sqlite3.connect(DB_NAME)
