@@ -22,8 +22,8 @@ def save_memory(
 
     cursor.execute("""
         INSERT INTO memories(
-            app_name,
-            window_title,
+            app,
+            title,
             timestamp,
             screenshot,
             summary,
@@ -50,7 +50,7 @@ def save_memory(
 
     conn.commit()
     conn.close()
-    
+
 def create_database():
 
     conn = sqlite3.connect(DB_NAME)
