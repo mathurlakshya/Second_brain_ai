@@ -100,8 +100,8 @@ class FloatingRecorder(ctk.CTkToplevel):
 
     def start_move(self, event):
 
-    self.offset_x = event.x
-    self.offset_y = event.y
+        self.offset_x = event.x
+        self.offset_y = event.y
 
 
     def do_move(self, event):
