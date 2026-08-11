@@ -68,6 +68,12 @@ class FloatingRecorder(ctk.CTkToplevel):
             command=self.stop
         )
         stop_btn.pack(pady=(0,8))
+
+        self.offset_x = 0
+        self.offset_y = 0
+
+        self.bind("<Button-1>", self.start_move)
+        self.bind("<B1-Motion>", self.do_move)
     def update_app(self, app, title):
 
         text = f"{app}\n{title}"
@@ -91,3 +97,16 @@ class FloatingRecorder(ctk.CTkToplevel):
         app.focus_force() # Give it focus
 
         self.destroy()
+
+    def start_move(self, event):
+
+    self.offset_x = event.x
+    self.offset_y = event.y
+
+
+    def do_move(self, event):
+
+        x = self.winfo_x() + event.x - self.offset_x
+        y = self.winfo_y() + event.y - self.offset_y
+
+        self.geometry(f"+{x}+{y}")    
