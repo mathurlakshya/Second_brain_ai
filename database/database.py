@@ -22,8 +22,8 @@ def save_memory(
 
     cursor.execute("""
         INSERT INTO memories(
-            app,
-            title,
+            app_name,
+            window_title,
             timestamp,
             screenshot,
             summary,
