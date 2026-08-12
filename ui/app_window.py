@@ -26,9 +26,7 @@ class AppWindow(ctk.CTkFrame):
         self.user_id = user_id
         self.username = username
 
-        self.title("Second Brain AI")
-        self.geometry("1366x768")
-        self.minsize(1200, 700)
+    
 
         self.configure(
             fg_color="#05080F"
