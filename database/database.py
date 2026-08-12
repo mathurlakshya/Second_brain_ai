@@ -80,29 +80,19 @@ def create_database():
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS memories(
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
 
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
 
-        user_id INTEGER,
-
-        app_name TEXT,
-
-        window_title TEXT,
-
-        timestamp TEXT,
-
-        screenshot TEXT,
-
-        summary TEXT,
-
-        ocr_text TEXT,
-
-        embedding TEXT,
-
-        contains_error INTEGER,
-
-        error_text TEXT
-
+    app_name TEXT,
+    window_title TEXT,
+    timestamp TEXT,
+    screenshot TEXT,
+    summary TEXT,
+    ocr_text TEXT,
+    embedding TEXT,
+    contains_error INTEGER,
+    error_text TEXT
     )
     """)
 
@@ -131,11 +121,20 @@ def create_database():
             ALTER TABLE memories
             ADD COLUMN user_id INTEGER
         """)
+    try:
+        cursor.execute("""
+            ALTER TABLE memories
+            ADD COLUMN user_id INTEGER
+        """)
+    except sqlite3.OperationalError:
+      pass
 
     conn.commit()
     conn.close()
 
     create_users_table()
+
+    
 def search_memories(query):
 
     conn = sqlite3.connect(DB_NAME)
