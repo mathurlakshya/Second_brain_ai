@@ -42,6 +42,7 @@ class Application(ctk.CTk):
         self.auth_page.destroy()
 
         self.app_window = AppWindow(
+            self,
             user_id=user["id"],
             username=user["username"]
         )

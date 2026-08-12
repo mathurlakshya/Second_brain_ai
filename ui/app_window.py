@@ -14,11 +14,14 @@ from ui.analytics_page import AnalyticsPage
 # from ui.settings_page import SettingsPage
 
 
-class AppWindow(ctk.CTk):
+class AppWindow(ctk.CTkFrame):
 
-    def __init__(self, user_id, username):
+    def __init__(self, parent, user_id, username):
 
-        super().__init__()
+        super().__init__(
+            parent,
+            fg_color="#05080F"
+        )
 
         self.user_id = user_id
         self.username = username
