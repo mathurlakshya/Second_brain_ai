@@ -1,9 +1,11 @@
 import json
 import sqlite3
+from database.users import create_users_table
 
 DB_NAME = "second_brain.db"
 
 def save_memory(
+    user_id,
     app,
     title,
     now,
@@ -22,6 +24,7 @@ def save_memory(
 
     cursor.execute("""
         INSERT INTO memories(
+            user_id,
             app_name,
             window_title,
             timestamp,
@@ -33,20 +36,19 @@ def save_memory(
             error_text
         )
 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-
-        app,
-        title,
-        now,
-        screenshot_path,
-        summary,
-        ocr_text,
-        embedding_json,
-        contains_error,
-        error_text
-
-    ))
+            user_id,
+            app,
+            title,
+            now,
+            screenshot_path,
+            summary,
+            ocr_text,
+            embedding_json,
+            contains_error,
+            error_text
+        ))
 
     conn.commit()
     conn.close()
@@ -56,11 +58,32 @@ def create_database():
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    # ---------------- USERS ---------------- #
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users(
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        username TEXT UNIQUE NOT NULL,
+
+        email TEXT UNIQUE NOT NULL,
+
+        password_hash TEXT NOT NULL,
+
+        created_at TEXT
+
+    )
+    """)
+
+    # ---------------- MEMORIES ---------------- #
+
+    cursor.execute("""
     CREATE TABLE IF NOT EXISTS memories(
 
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        user_id INTEGER,
 
         app_name TEXT,
 
@@ -73,7 +96,7 @@ def create_database():
         summary TEXT,
 
         ocr_text TEXT,
-        
+
         embedding TEXT,
 
         contains_error INTEGER,
@@ -81,38 +104,38 @@ def create_database():
         error_text TEXT
 
     )
-
     """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users(
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            username TEXT UNIQUE NOT NULL,
+
+            email TEXT UNIQUE NOT NULL,
+
+            password_hash TEXT NOT NULL,
+
+            created_at TEXT
+
+        )
+        """)
+    # Add user_id to an OLD memories table if it doesn't have it
+    cursor.execute("PRAGMA table_info(memories)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if "user_id" not in columns:
+
+        cursor.execute("""
+            ALTER TABLE memories
+            ADD COLUMN user_id INTEGER
+        """)
 
     conn.commit()
     conn.close()
 
-
-def get_all_memories():
-
-    conn = sqlite3.connect(DB_NAME)
-
-    cursor = conn.cursor()
-
-    cursor.execute("""
-
-        SELECT
-            app_name,
-            window_title,
-            timestamp
-
-        FROM memories
-
-        ORDER BY id DESC
-
-    """)
-
-    rows = cursor.fetchall()
-
-    conn.close()
-
-    return rows
-
+    create_users_table()
 def search_memories(query):
 
     conn = sqlite3.connect(DB_NAME)

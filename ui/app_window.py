@@ -16,8 +16,12 @@ from ui.analytics_page import AnalyticsPage
 
 class AppWindow(ctk.CTk):
 
-    def __init__(self):
+    def __init__(self, user_id, username):
+
         super().__init__()
+
+        self.user_id = user_id
+        self.username = username
 
         self.title("Second Brain AI")
         self.geometry("1366x768")
