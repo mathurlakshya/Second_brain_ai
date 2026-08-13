@@ -95,6 +95,18 @@ def create_database():
     error_text TEXT
     )
     """)
+    
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_settings(
+
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+            user_id INTEGER UNIQUE,
+
+            save_screenshots INTEGER DEFAULT 0
+
+        )
+        """)
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS users(
@@ -180,3 +192,47 @@ def search_memories(query):
     conn.close()
 
     return rows    
+
+def get_user_setting(user_id):
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT save_screenshots
+        FROM user_settings
+        WHERE user_id = ?
+    """, (user_id,))
+
+    row = cursor.fetchone()
+
+    conn.close()
+
+    # OFF by default
+    if row is None:
+        return False
+
+    return bool(row[0])    
+
+def set_user_setting(user_id, save_screenshots):
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO user_settings(
+            user_id,
+            save_screenshots
+        )
+        VALUES (?, ?)
+
+        ON CONFLICT(user_id)
+        DO UPDATE SET
+            save_screenshots = excluded.save_screenshots
+    """, (
+        user_id,
+        1 if save_screenshots else 0
+    ))
+
+    conn.commit()
+    conn.close()    

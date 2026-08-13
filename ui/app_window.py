@@ -69,7 +69,10 @@ class AppWindow(ctk.CTkFrame):
 
         self.pages["search"] = SearchPage(self.container)
 
-        self.pages["settings"] = SettingsPage(self.container)
+        self.pages["settings"] = SettingsPage(
+                self.container,
+                user_id=self.user_id
+            )
 
         self.pages["analytics"] = AnalyticsPage(self.container)
 

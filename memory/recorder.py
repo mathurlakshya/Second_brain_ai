@@ -1,3 +1,4 @@
+import os
 import win32gui
 import win32process
 import psutil
@@ -8,10 +9,17 @@ from ai.gemini import summarize_screen
 from vision.ocr import extract_text
 from database.database import save_memory
 from ai.embeddings import create_embedding
+from database.database import (
+    save_memory,
+    get_user_setting
+)
+
 
 class MemoryRecorder:
 
     def __init__(self, callback=None):
+
+        self.user_id = user_id
         self.running = False
         self.last_window = ""
         self.callback = callback
@@ -39,74 +47,124 @@ class MemoryRecorder:
 
         while self.running:
 
-            app, title = self.get_active_window()
+            screenshot_path = None
 
-            if title != self.last_window:
+            try:
+                app, title = self.get_active_window()
 
-                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if title != self.last_window:
 
-                screenshot_path = capture_screen()
+                    now = datetime.datetime.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
 
-                ocr_text = extract_text(screenshot_path)
+                    # 1. Capture temporary screenshot
+                    screenshot_path = capture_screen()
 
-                summary = summarize_screen(
-                    screenshot_path,
-                    ocr_text
-                )
+                    # 2. OCR
+                    ocr_text = extract_text(screenshot_path)
 
-                contains_error = 0
-                error_text = ""
+                    # 3. Generate summary
+                    summary = summarize_screen(
+                        screenshot_path,
+                        ocr_text
+                    )
 
-                keywords = [
-                    "Traceback",
-                    "Exception",
-                    "ImportError",
-                    "ModuleNotFoundError",
-                    "TypeError",
-                    "ValueError",
-                    "SyntaxError",
-                    "RuntimeError",
-                    "RESOURCE_EXHAUSTED",
-                    "AttributeError",
-                    "NameError"
-                ]
+                    # 4. Detect errors
+                    contains_error = 0
+                    error_text = ""
 
-                for word in keywords:
+                    keywords = [
+                        "Traceback",
+                        "Exception",
+                        "ImportError",
+                        "ModuleNotFoundError",
+                        "TypeError",
+                        "ValueError",
+                        "SyntaxError",
+                        "RuntimeError",
+                        "RESOURCE_EXHAUSTED",
+                        "AttributeError",
+                        "NameError"
+                    ]
 
-                    if word.lower() in summary.lower():
+                    for word in keywords:
 
-                        contains_error = 1
+                        if word.lower() in summary.lower():
 
-                        error_text = summary
+                            contains_error = 1
+                            error_text = summary
 
-                        break
-                
-                combined = summary + "\n" + ocr_text
+                            break
 
-                embedding = create_embedding(combined)
+                    # 5. Create embedding
+                    combined = summary + "\n" + ocr_text
 
-                save_memory(
-                    app,
-                    title,
-                    now,
-                    screenshot_path,
-                    summary,
-                    ocr_text,
-                    embedding,
-                    contains_error,
-                    error_text,
-                    
-                )
-                if self.callback:
-                 self.callback(app, title, now)
-                print(f"Saved: {app} | {title}")
-                print(summary)
-                print("-" * 60)
+                    embedding = create_embedding(combined)
 
-                self.last_window = title
+                    # 6. Save memory
+                    save_memory(
+                        app,
+                        title,
+                        now,
+                        screenshot_path,
+                        summary,
+                        ocr_text,
+                        embedding,
+                        contains_error,
+                        error_text
+                    )
+
+                    # 7. Callback
+                    if self.callback:
+                        self.callback(
+                            app,
+                            title,
+                            now
+                        )
+
+                    print(
+                        f"Saved: {app} | {title}"
+                    )
+
+                    print(summary)
+                    print("-" * 60)
+
+                    self.last_window = title
+
+            except Exception as e:
+
+                print("⚠️ Memory recording error:")
+                print(e)
+
+            finally:
+
+                if screenshot_path:
+
+                    save_screenshots = get_user_setting(
+                        self.user_id
+                    )
+
+                    if not save_screenshots:
+                        self.delete_screenshot(
+                            screenshot_path
+                        )
 
             time.sleep(5)
 
     def stop(self):
 
         self.running = False
+
+    def delete_screenshot(self, path):
+        if not path:
+            return
+
+        if not os.path.exists(path):
+            return
+
+        try:
+            os.remove(path)
+            print(f"🗑️ Deleted temporary screenshot: {path}")
+        except Exception as e:
+            print(f"⚠️ Could not delete screenshot: {e}")    

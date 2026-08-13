@@ -10,7 +10,10 @@ class Dashboard(ctk.CTkFrame):
     def __init__(self, parent):
         super().__init__(parent, fg_color="#101826")
 
-        self.recorder = MemoryRecorder(callback=self.update_status)
+        self.recorder = MemoryRecorder(
+            user_id=self.user_id,
+            callback=self.on_memory_saved
+        )
         
         self.floating = None
 
