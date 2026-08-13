@@ -34,7 +34,8 @@ class AuthPage(ctk.CTkFrame):
         title = ctk.CTkLabel(
             container,
             text="🧠 Second Brain AI",
-            font=("Segoe UI", 28, "bold")
+            font=("Segoe UI", 28, "bold"),
+            text_color="#F5FAFF"
         )
 
         title.pack(
@@ -44,7 +45,8 @@ class AuthPage(ctk.CTkFrame):
         subtitle = ctk.CTkLabel(
             container,
             text="Your personal digital memory",
-            font=("Segoe UI", 14)
+            font=("Segoe UI", 14),
+            text_color="#A9C7E8"
         )
 
         subtitle.pack(
