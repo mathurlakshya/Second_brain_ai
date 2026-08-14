@@ -22,7 +22,7 @@ class AppWindow(ctk.CTkFrame):
             parent,
             fg_color="#05080F"
         )
-
+        self.parent = parent
         self.user_id = user_id
         self.username = username
 
@@ -61,7 +61,11 @@ class AppWindow(ctk.CTkFrame):
 
         self.pages = {}
 
-        self.pages["dashboard"] = Dashboard(self.container)
+        self.pages["dashboard"] = Dashboard(
+            self.container,
+            self.user_id,
+            self.username
+        )
 
         self.pages["live_context"] = LiveContext(self.container)
 
