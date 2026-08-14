@@ -8,12 +8,12 @@ class SettingsPage(ctk.CTkFrame):
 
     def __init__(self, parent, user_id):
 
-        super().__init__(parent)
+        super().__init__(
+            parent,
+            fg_color="#111827"
+        )
 
         self.user_id = user_id
-
-        self.build_ui()
-        super().__init__(parent, fg_color="#111827")
         
         save_screenshots = get_user_setting(self.user_id)
         self.screenshot_switch = ctk.CTkSwitch(
