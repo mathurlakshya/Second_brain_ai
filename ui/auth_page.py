@@ -1,5 +1,5 @@
 import customtkinter as ctk
-
+from session import save_session
 from database.auth import create_user, login_user
 
 
@@ -13,9 +13,6 @@ class AuthPage(ctk.CTkFrame):
 
         self.on_login = on_login
         
-        from session import save_session
-
-        save_session(user)
 
         self.build_ui()
 
@@ -183,5 +180,5 @@ class AuthPage(ctk.CTkFrame):
             )
 
             return
-
+        save_session(user)
         self.on_login(user)
