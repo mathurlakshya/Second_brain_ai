@@ -3,13 +3,14 @@ import customtkinter as ctk
 
 class Sidebar(ctk.CTkFrame):
 
-    def __init__(self, parent, change_page):
+    def __init__(self, parent, change_page,username):
         super().__init__(
             parent,
             width=230,
             fg_color="#161B22",
             corner_radius=0
         )
+        self.username = username 
 
         self.change_page = change_page
 
@@ -59,7 +60,7 @@ class Sidebar(ctk.CTkFrame):
 
         self.account_button = ctk.CTkButton(
             self.bottom_frame,
-            text=f"👤 {username} ▼",
+            text=f"👤 {self.username} ▼",
             command=self.show_account_menu
         )
 

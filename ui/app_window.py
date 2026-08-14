@@ -38,7 +38,7 @@ class AppWindow(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=1)
 
         # Sidebar
-        self.sidebar = Sidebar(self, self.show_page)
+        self.sidebar = Sidebar(self, self.show_page,username)
         self.sidebar.grid(row=0, column=0, sticky="ns")
 
         # Main Content Area
