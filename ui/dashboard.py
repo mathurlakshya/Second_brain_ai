@@ -7,8 +7,8 @@ from ui.chat_panel import ChatPanel
 
 class Dashboard(ctk.CTkFrame):
 
-    def __init__(self, parent):
-        super().__init__(parent,user_id,username, fg_color="#101826")
+    def __init__(self, parent,user_id,username):
+        super().__init__(parent, fg_color="#101826")
         
         self.user_id = user_id
         self.username = username
