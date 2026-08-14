@@ -17,8 +17,7 @@ from database.database import (
 
 class MemoryRecorder:
 
-    def __init__(self, callback=None):
-
+    def __init__(self, user_id, callback=None):
         self.user_id = user_id
         self.running = False
         self.last_window = ""
@@ -104,6 +103,7 @@ class MemoryRecorder:
 
                     # 6. Save memory
                     save_memory(
+                        self.user_id,
                         app,
                         title,
                         now,
