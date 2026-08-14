@@ -528,3 +528,6 @@ class Dashboard(ctk.CTkFrame):
         Future runtime timer.
         """
         pass    
+
+    def on_memory_saved(self, app, title, timestamp):
+    print(f"New memory saved: {app} | {title}")    
