@@ -101,3 +101,7 @@ class AppWindow(ctk.CTkFrame):
 
         if page:
             page.tkraise()
+
+    def logout(self):
+
+      self.master.logout()        

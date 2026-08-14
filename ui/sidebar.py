@@ -46,6 +46,25 @@ class Sidebar(ctk.CTkFrame):
 
         version.pack(pady=20)
 
+        self.bottom_frame = ctk.CTkFrame(
+            self,
+            fg_color="transparent"
+        )
+
+        self.bottom_frame.pack(
+            side="bottom",
+            fill="x",
+            pady=20
+        )
+
+        self.account_button = ctk.CTkButton(
+            self.bottom_frame,
+            text=f"👤 {username} ▼",
+            command=self.show_account_menu
+        )
+
+        self.account_button.pack(fill="x", padx=15)
+
     def create_button(self, text, page):
 
         btn = ctk.CTkButton(
@@ -61,3 +80,25 @@ class Sidebar(ctk.CTkFrame):
             padx=15,
             pady=6
         )
+
+    def show_account_menu(self):
+
+        menu = ctk.CTkToplevel(self)
+
+        menu.geometry("170x70")
+
+        logout = ctk.CTkButton(
+            menu,
+            text="Logout",
+            command=self.logout
+        )
+
+        logout.pack(
+            padx=15,
+            pady=15,
+            fill="x"
+        )    
+
+    def logout(self):
+
+      self.master.master.logout()    

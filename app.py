@@ -51,10 +51,30 @@ class Application(ctk.CTk):
             fill="both",
             expand=True
         )
+    def logout(self):
 
+            from session import clear_session
+
+            clear_session()
+
+            self.app_window.destroy()
+
+            self.show_login()
 
 if __name__ == "__main__":
 
     app = Application()
 
     app.mainloop()
+
+from session import load_session
+
+user = load_session()
+
+if user:
+
+    self.login_success(user)
+
+else:
+
+    self.show_login()    
