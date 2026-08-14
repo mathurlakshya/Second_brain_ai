@@ -10,8 +10,9 @@ class Sidebar(ctk.CTkFrame):
             fg_color="#161B22",
             corner_radius=0
         )
-        print('sidebar username: ',self.username)
         self.username = username 
+        print('sidebar username: ',self.username)
+        
 
         self.change_page = change_page
 
