@@ -68,7 +68,16 @@ class MemoryRecorder:
                         screenshot_path,
                         ocr_text
                     )
+                    keep_screenshot = get_user_setting(self.user_id)
+                    if not keep_screenshot:
 
+                        try:
+                            if screenshot_path and os.path.exists(screenshot_path):
+                                os.remove(screenshot_path)
+                                screenshot_path = ""
+
+                        except Exception as e:
+                            print(f"Could not delete screenshot: {e}")
                     # 4. Detect errors
                     contains_error = 0
                     error_text = ""
