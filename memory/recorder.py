@@ -4,20 +4,18 @@ import win32process
 import psutil
 import datetime
 import time
+
 from vision.screenshot import capture_screen
 from ai.gemini import summarize_screen
 from vision.ocr import extract_text
-from database.database import save_memory
+from database.database import save_memory, get_user_setting
 from ai.embeddings import create_embedding
-from database.database import (
-    save_memory,
-    get_user_setting
-)
 
 
 class MemoryRecorder:
 
     def __init__(self, user_id, callback=None):
+
         self.user_id = user_id
         self.running = False
         self.last_window = ""
@@ -35,7 +33,7 @@ class MemoryRecorder:
             process = psutil.Process(pid)
             app = process.name()
 
-        except:
+        except Exception:
             app = "Unknown"
 
         return app, title
@@ -46,9 +44,8 @@ class MemoryRecorder:
 
         while self.running:
 
-            screenshot_path = None
-
             try:
+
                 app, title = self.get_active_window()
 
                 if title != self.last_window:
@@ -56,21 +53,32 @@ class MemoryRecorder:
                     now = datetime.datetime.now().strftime(
                         "%Y-%m-%d %H:%M:%S"
                     )
-                    keep_screenshot = get_user_setting(self.user_id)
-                    # 1. Capture temporary screenshot
+
+                    # Get the user's screenshot preference.
+                    # This is defined BEFORE it is used.
+                    keep_screenshot = get_user_setting(
+                        self.user_id
+                    )
+
+                    print(
+                        f"Screenshot retention: "
+                        f"{keep_screenshot}"
+                    )
+
+                    # Capture screenshot temporarily.
                     screenshot_path = capture_screen()
 
-                    # 2. OCR
-                    ocr_text = extract_text(screenshot_path)
+                    # OCR
+                    ocr_text = extract_text(
+                        screenshot_path
+                    )
 
-                    # 3. Generate summary
+                    # Gemini summary
                     summary = summarize_screen(
                         screenshot_path,
                         ocr_text
                     )
-    
-        
-                    # 4. Detect errors
+
                     contains_error = 0
                     error_text = ""
 
@@ -97,35 +105,70 @@ class MemoryRecorder:
 
                             break
 
-                    # 5. Create embedding
-                    combined = summary + "\n" + ocr_text
+                    combined = (
+                        summary
+                        + "\n"
+                        + ocr_text
+                    )
 
-                    embedding = create_embedding(combined)
+                    embedding = create_embedding(
+                        combined
+                    )
 
-                    # 6. Save memory
+                    # If screenshots are disabled,
+                    # don't store a permanent path.
+                    stored_screenshot_path = (
+                        screenshot_path
+                        if keep_screenshot
+                        else ""
+                    )
+
+                    # Save memory.
                     save_memory(
-                        self.user_id,
                         app,
                         title,
                         now,
-                        screenshot_path,
+                        stored_screenshot_path,
                         summary,
                         ocr_text,
                         embedding,
                         contains_error,
                         error_text
                     )
+
+                    # Delete temporary screenshot
+                    # when the user doesn't want
+                    # screenshot retention.
                     if not keep_screenshot:
 
                         try:
-                            if screenshot_path and os.path.exists(screenshot_path):
-                                os.remove(screenshot_path)
-                                screenshot_path = ""
+
+                            if (
+                                screenshot_path
+                                and os.path.exists(
+                                    screenshot_path
+                                )
+                            ):
+
+                                os.remove(
+                                    screenshot_path
+                                )
+
+                                print(
+                                    "🗑️ Deleted temporary "
+                                    f"screenshot: "
+                                    f"{screenshot_path}"
+                                )
 
                         except Exception as e:
-                            print(f"Could not delete screenshot: {e}")
-                    # 7. Callback
+
+                            print(
+                                "⚠️ Could not delete "
+                                f"screenshot: {e}"
+                            )
+
                     if self.callback:
+
                         self.callback(
                             app,
                             title,
@@ -133,47 +176,27 @@ class MemoryRecorder:
                         )
 
                     print(
-                        f"Saved: {app} | {title}"
+                        f"✅ Saved: {app} | {title}"
                     )
 
                     print(summary)
+
                     print("-" * 60)
 
                     self.last_window = title
 
             except Exception as e:
 
-                print("⚠️ Memory recording error:")
-                print(e)
+                print(
+                    "⚠️ Memory recording error:"
+                )
 
-            finally:
-
-                if screenshot_path:
-
-                    save_screenshots = get_user_setting(
-                        self.user_id
-                    )
-
-                    if not save_screenshots:
-                        self.delete_screenshot(
-                            screenshot_path
-                        )
+                print(
+                    repr(e)
+                )
 
             time.sleep(5)
 
     def stop(self):
 
         self.running = False
-
-    def delete_screenshot(self, path):
-        if not path:
-            return
-
-        if not os.path.exists(path):
-            return
-
-        try:
-            os.remove(path)
-            print(f"🗑️ Deleted temporary screenshot: {path}")
-        except Exception as e:
-            print(f"⚠️ Could not delete screenshot: {e}")    
