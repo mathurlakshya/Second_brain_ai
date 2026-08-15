@@ -16,14 +16,6 @@ def save_memory(
     contains_error=0,
     error_text=""
 ):
-    if not keep_screenshot:
-
-        try:
-            if screenshot_path and os.path.exists(screenshot_path):
-                os.remove(screenshot_path)
-
-        except Exception as e:
-            print(f"Could not delete screenshot: {e}")
     
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
