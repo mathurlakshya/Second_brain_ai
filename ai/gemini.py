@@ -5,8 +5,6 @@ from config import GEMINI_API_KEY
 from ai.prompts import SYSTEM_PROMPT
 from services.app_state import AppState
 
-client = genai.Client(api_key=GEMINI_API_KEY)
-
 print("✅ Gemini client initialized")
 CURRENT_CONTEXT = ""
 CHAT_HISTORY = []
