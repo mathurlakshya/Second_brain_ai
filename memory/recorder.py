@@ -125,6 +125,7 @@ class MemoryRecorder:
 
                     # Save memory.
                     save_memory(
+                        self.user_id,
                         app,
                         title,
                         now,
