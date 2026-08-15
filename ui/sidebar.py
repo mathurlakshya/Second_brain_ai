@@ -86,22 +86,38 @@ class Sidebar(ctk.CTkFrame):
 
     def show_account_menu(self):
 
-        menu = ctk.CTkToplevel(self)
+        # If menu already exists, close it
+        if hasattr(self, "account_menu") and self.account_menu.winfo_exists():
+            self.account_menu.destroy()
+            return
 
-        menu.geometry("170x70")
+        self.account_menu = ctk.CTkToplevel(self)
 
-        logout = ctk.CTkButton(
-            menu,
+        self.account_menu.title("Account")
+        self.account_menu.geometry("180x70")
+        self.account_menu.resizable(False, False)
+
+        # Keep it above the main application
+        self.account_menu.transient(self.winfo_toplevel())
+        self.account_menu.grab_set()
+
+        logout_button = ctk.CTkButton(
+            self.account_menu,
             text="Logout",
-            command=self.logout
+            command=self.logout,
+            fg_color="#DC2626",
+            hover_color="#B91C1C"
         )
 
-        logout.pack(
+        logout_button.pack(
+            fill="x",
             padx=15,
-            pady=15,
-            fill="x"
-        )    
+            pady=15
+        )   
 
     def logout(self):
 
-      self.master.master.logout()    
+        if hasattr(self, "account_menu") and self.account_menu.winfo_exists():
+            self.account_menu.destroy()
+
+        self.master.master.logout()
