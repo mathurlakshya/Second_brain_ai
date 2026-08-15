@@ -18,4 +18,4 @@ second_brain.db
 screenshots/
 
 # VS Code
-.vscode/
+.vscode/session.json
