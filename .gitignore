@@ -1,21 +1,75 @@
-venv/
+# ==============================
+# Python
+# ==============================
+
 __pycache__/
-*.pyc
-screenshots/
-second_brain.db
-.env
-.vscode/
-.idea/__pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.pyd
 
+# ==============================
 # Virtual Environment
+# ==============================
+
 venv/
+.venv/
+env/
+ENV/
 
+# ==============================
+# Environment / Secrets
+# ==============================
+
+.env
+.env.*
+!.env.example
+
+# ==============================
 # Database
-second_brain.db
+# ==============================
 
-# Screenshots
+*.db
+*.sqlite
+*.sqlite3
+
+# ==============================
+# Screenshots / Generated Files
+# ==============================
+
 screenshots/
+*.png
+*.jpg
+*.jpeg
 
-# VS Code
-.vscode/session.json
+# ==============================
+# User Sessions / Local Data
+# ==============================
+
+session.json
+
+# ==============================
+# IDE / Editors
+# ==============================
+
+.vscode/
+.idea/
+
+# ==============================
+# OS Files
+# ==============================
+
+.DS_Store
+Thumbs.db
+
+# ==============================
+# Logs
+# ==============================
+
+*.log
+
+# ==============================
+# Temporary Files
+# ==============================
+
+*.tmp
+*.temp
