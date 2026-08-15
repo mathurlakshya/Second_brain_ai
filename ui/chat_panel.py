@@ -85,15 +85,7 @@ Welcome back.
 
 I'm connected to your Second Brain.
 
-Ask me anything about
-
-🧠 your memories
-
-💻 your coding
-
-📂 documents
-
-📸 screenshots
+Ask me anything....
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"""
             )
