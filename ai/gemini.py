@@ -4,7 +4,7 @@ from PIL import Image
 from config import GEMINI_API_KEY
 from ai.prompts import SYSTEM_PROMPT
 from services.app_state import AppState
-
+client = genai.Client(api_key=GEMINI_API_KEY)
 print("✅ Gemini client initialized")
 CURRENT_CONTEXT = ""
 CHAT_HISTORY = []
@@ -129,15 +129,14 @@ def summarize_screen(image_path, ocr_text=""):
             contents=[
 
                 image,
-                """
+                f"""
 You are JARVIS.
 
 Below is OCR text extracted from the screenshot.
 
-Use BOTH
+Use BOTH:
 
 1. Screenshot
-
 2. OCR text
 
 to produce the most accurate summary.
@@ -146,22 +145,17 @@ OCR:
 
 {ocr_text}
 
-Explain
+Explain:
 
 • What document is open
-
 • What coding task is happening
-
 • What topic is being studied
-
 • Any important code
-
 • Any errors
-
 • Important facts
 
-Keep it concise."""
-            ]
+Keep it concise.
+"""            ]
         )
 
         return response.text
