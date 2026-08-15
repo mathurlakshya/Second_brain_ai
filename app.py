@@ -70,14 +70,4 @@ if __name__ == "__main__":
 
     app.mainloop()
 
-from session import load_session
-
-user = load_session()
-
-if user:
-
-    self.login_success(user)
-
-else:
-
-    self.show_login()    
+  
