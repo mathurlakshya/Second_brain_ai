@@ -236,3 +236,27 @@ def set_user_setting(user_id, save_screenshots):
 
     conn.commit()
     conn.close()    
+def get_recent_memories(user_id, limit=10):
+
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+    
+        cursor.execute("""
+            SELECT
+                timestamp,
+                app_name,
+                window_title,
+                summary,
+                screenshot
+            FROM memories
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+        """, (user_id, limit))
+    
+        rows = cursor.fetchall()
+    
+        conn.close()
+    
+        return rows    
+        
