@@ -194,5 +194,5 @@ class MemoryRecorder:
                 )
     
             time.sleep(5)    
-   def stop(self):
+    def stop(self):
        self.running = False
