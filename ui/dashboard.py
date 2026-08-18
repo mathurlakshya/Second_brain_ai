@@ -531,3 +531,4 @@ class Dashboard(ctk.CTkFrame):
 
     def on_memory_saved(self, app, title, timestamp):
        print(f"New memory saved: {app} | {title}")    
+       self.load_recent_activities() 
