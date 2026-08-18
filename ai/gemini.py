@@ -9,13 +9,13 @@ print("✅ Gemini client initialized")
 CURRENT_CONTEXT = ""
 CHAT_HISTORY = []
 MEMORY_CHAT_HISTORY = []
-modell = 'gemini-3.1-flash-lite'
+MODEL = 'gemini-3.1-flash-lite'
 def ask_jarvis(question):
     
     print("📩 User asked:", question)
 
     global CHAT_HISTORY
-    global modell
+    global MODEL
 
     history = ""
 
@@ -38,7 +38,7 @@ User:
     print("🚀 Sending request to Gemini...")
 
     response = client.models.generate_content(
-        model=modell,
+        model=MODEL,
         contents=prompt
     )
 
@@ -56,14 +56,14 @@ User:
 
     
 def analyze_screen(image_path):
-    global modell
+    global MODEL
     try:
 
         image = Image.open(image_path)
 
         response = client.models.generate_content(
 
-           model=modell,
+           model=MODEL,
 
             contents=[
                 image,
@@ -117,14 +117,14 @@ This analysis will later be used to answer user questions.
         return f"Vision Error: {e}"
     
 def summarize_screen(image_path, ocr_text=""):
-    global modell
+    global MODEL
     try:
 
         image = Image.open(image_path)
 
         response = client.models.generate_content(
 
-            model=modell,
+            model=MODEL,
 
             contents=[
 
@@ -173,7 +173,7 @@ def save_context(text):
 def ask_about_screen(question):
 
     global CURRENT_CONTEXT
-    global modell
+    global MODEL
 
     prompt = f"""
 You are JARVIS.
@@ -206,7 +206,7 @@ Be detailed and educational.
 """
 
     response = client.models.generate_content(
-        model=modell,
+        model=MODEL,
         contents=prompt
     )
 
@@ -215,7 +215,7 @@ Be detailed and educational.
 from database.query import get_recent_memories
 
 def ask_memory(question):
-    global modell
+    global MODEL
     memories = get_recent_memories()
 
     memory_text = ""
@@ -253,7 +253,7 @@ Question:
     try:
 
         response = client.models.generate_content(
-            model=modell,
+            model=MODEL,
             contents=prompt
         )
 
@@ -291,7 +291,7 @@ def ask_memory_chat(question):
         """
 
     global MEMORY_CHAT_HISTORY
-    global modell
+    global MODEL
     
     history = ""
 
@@ -360,7 +360,7 @@ User Question:
 Give a detailed, easy-to-read answer.
 """
     response = client.models.generate_content(
-    model=modell,
+    model=MODEL,
     contents=prompt
     )
 
