@@ -41,56 +41,64 @@ class MemoryRecorder:
     def start(self):
 
         self.running = True
-
+    
         while self.running:
-
+    
             try:
-
+                print("\n🧠 Memory recorder cycle started")
+    
                 app, title = self.get_active_window()
-
-                if title != self.last_window:
-
+    
+                print(f"🪟 Active window: {app} | {title}")
+    
+                if title and title != self.last_window:
+    
+                    print("1️⃣ Window changed")
+    
                     now = datetime.datetime.now().strftime(
                         "%Y-%m-%d %H:%M:%S"
                     )
-
-                    # Get the user's screenshot preference.
-                    # This is defined BEFORE it is used.
+    
                     keep_screenshot = get_user_setting(
                         self.user_id
                     )
-
+    
                     print(
-                        f"Screenshot retention: "
+                        f"2️⃣ Screenshot retention: "
                         f"{keep_screenshot}"
                     )
-
-                    # Capture screenshot temporarily.
+    
                     screenshot_path = capture_screen()
-
-                    # OCR
+    
+                    print(
+                        f"3️⃣ Screenshot captured: "
+                        f"{screenshot_path}"
+                    )
+    
                     ocr_text = extract_text(
                         screenshot_path
                     )
-
-                    # Gemini summary
+    
+                    print("4️⃣ OCR completed")
+    
                     summary = summarize_screen(
                         screenshot_path,
                         ocr_text
                     )
-                    combined = (
-                        summary
-                        + "\n"
-                        + ocr_text
-                    )
-
+    
+                    print("5️⃣ Gemini summary completed")
+    
+                    combined = summary + "\n" + ocr_text
+    
                     embedding = create_embedding(
                         combined
                     )
-                    
+    
+                    print("6️⃣ Embedding completed")
+    
                     contains_error = 0
                     error_text = ""
-
+    
                     keywords = [
                         "Traceback",
                         "Exception",
@@ -104,103 +112,87 @@ class MemoryRecorder:
                         "AttributeError",
                         "NameError"
                     ]
-
+    
                     for word in keywords:
-
+    
                         if word.lower() in summary.lower():
-
                             contains_error = 1
                             error_text = summary
-
                             break
-
-                
-
-                    # If screenshots are disabled,
-                    # don't store a permanent path.
-                    stored_screenshot_path = (
+    
+                    stored_screenshot = (
                         screenshot_path
                         if keep_screenshot
                         else ""
                     )
-
-                    # Save memory.
+    
+                    print("7️⃣ Saving memory...")
+    
                     save_memory(
                         self.user_id,
                         app,
                         title,
                         now,
-                        stored_screenshot_path,
+                        stored_screenshot,
                         summary,
                         ocr_text,
                         embedding,
                         contains_error,
                         error_text
                     )
+    
                     print(
-                         f"✅ Saved: {app} | {title}"
+                        f"8️⃣ ✅ Memory saved: "
+                        f"{app} | {title}"
                     )
-                    # Delete temporary screenshot
-                    # when the user doesn't want
-                    # screenshot retention.
+    
                     if not keep_screenshot:
-
+    
                         try:
-
+    
                             if (
                                 screenshot_path
                                 and os.path.exists(
                                     screenshot_path
                                 )
                             ):
-
+    
                                 os.remove(
                                     screenshot_path
                                 )
-
+    
                                 print(
-                                    "🗑️ Deleted temporary "
-                                    f"screenshot: "
+                                    f"🗑️ Deleted temporary screenshot: "
                                     f"{screenshot_path}"
                                 )
-
+    
                         except Exception as e:
-
+    
                             print(
-                                "⚠️ Could not delete "
-                                f"screenshot: {e}"
+                                f"⚠️ Screenshot cleanup failed: {e}"
                             )
-
+    
                     if self.callback:
-
+    
                         self.callback(
                             app,
                             title,
                             now
                         )
-
-                    print(
-                        f"✅ Saved: {app} | {title}"
-                    )
-
-                    print(summary)
-
-                    print("-" * 60)
-
+    
                     self.last_window = title
-
+    
+                else:
+    
+                    print("⏳ Same window — waiting...")
+    
             except Exception as e:
-
+    
                 print(
-                    "⚠️ Memory recording error:"
+                    f"❌ MEMORY RECORDER FAILED: "
+                    f"{type(e).__name__}: {e}"
                 )
-
-                print(
-                    repr(e)
-                )
-
-            time.sleep(5)
-
-    def stop(self):
-
-        self.running = False
+    
+            time.sleep(5)    
+   def stop(self):
+       self.running = False
