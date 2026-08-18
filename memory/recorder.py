@@ -18,26 +18,29 @@ class MemoryRecorder:
 
         self.user_id = user_id
         self.running = False
-        self.last_window = ""
+        self.last_window = None
         self.callback = callback
 
     def get_active_window(self):
 
-        hwnd = win32gui.GetForegroundWindow()
-
-        title = win32gui.GetWindowText(hwnd)
-
-        _, pid = win32process.GetWindowThreadProcessId(hwnd)
-
-        try:
-            process = psutil.Process(pid)
-            app = process.name()
-
-        except Exception:
-            app = "Unknown"
-
-        return app, title
-
+            hwnd = win32gui.GetForegroundWindow()
+        
+            if not hwnd:
+                return "Unknown", "Unknown"
+        
+            title = win32gui.GetWindowText(hwnd).strip()
+        
+            try:
+                _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        
+                process = psutil.Process(pid)
+        
+                app = process.name()
+        
+            except Exception:
+                app = "Unknown"
+        
+            return app, title
     def start(self):
 
         self.running = True
@@ -48,10 +51,10 @@ class MemoryRecorder:
                 print("\n🧠 Memory recorder cycle started")
     
                 app, title = self.get_active_window()
-    
+                print(f"🔎 FOREGROUND: {app} | {title}")
                 print(f"🪟 Active window: {app} | {title}")
-    
-                if title and title != self.last_window:
+                current_window = (app,title)
+                if title and current_window != self.last_window:
     
                     print("1️⃣ Window changed")
     
@@ -180,7 +183,7 @@ class MemoryRecorder:
                             now
                         )
     
-                    self.last_window = title
+                    self.last_window = current_window
     
                 else:
     
