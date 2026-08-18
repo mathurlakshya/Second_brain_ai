@@ -78,7 +78,16 @@ class MemoryRecorder:
                         screenshot_path,
                         ocr_text
                     )
+                    combined = (
+                        summary
+                        + "\n"
+                        + ocr_text
+                    )
 
+                    embedding = create_embedding(
+                        combined
+                    )
+                    
                     contains_error = 0
                     error_text = ""
 
@@ -105,15 +114,7 @@ class MemoryRecorder:
 
                             break
 
-                    combined = (
-                        summary
-                        + "\n"
-                        + ocr_text
-                    )
-
-                    embedding = create_embedding(
-                        combined
-                    )
+                
 
                     # If screenshots are disabled,
                     # don't store a permanent path.
@@ -136,7 +137,9 @@ class MemoryRecorder:
                         contains_error,
                         error_text
                     )
-
+                    print(
+                         f"✅ Saved: {app} | {title}"
+                    )
                     # Delete temporary screenshot
                     # when the user doesn't want
                     # screenshot retention.
