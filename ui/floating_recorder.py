@@ -11,6 +11,7 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         self.is_minimized = False
         self.arrow_visible = False
+        self.control_menu = None
 
         # ==================================================
         # WINDOW SETTINGS
@@ -18,7 +19,7 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         screen_width = self.winfo_screenwidth()
 
-        x = screen_width - 240
+        x = screen_width - 250
         y = 40
 
         self.normal_width = 190
@@ -81,7 +82,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         # --------------------------------------------------
-        # MINIMIZE BUTTON
+        # MINIMIZE
         # --------------------------------------------------
 
         self.minimize_btn = ctk.CTkButton(
@@ -113,7 +114,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         self.status.pack()
 
         # --------------------------------------------------
-        # CURRENT APPLICATION
+        # CURRENT APP
         # --------------------------------------------------
 
         self.current_app = ctk.CTkLabel(
@@ -128,7 +129,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         # --------------------------------------------------
-        # NORMAL OFF BUTTON
+        # OFF BUTTON
         # --------------------------------------------------
 
         self.stop_btn = ctk.CTkButton(
@@ -148,7 +149,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         # ==================================================
-        # MINIMIZED BRAIN AREA
+        # MINIMIZED BRAIN
         # ==================================================
 
         self.mini_frame = ctk.CTkFrame(
@@ -160,10 +161,6 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         self.mini_frame.pack_propagate(False)
-
-        # --------------------------------------------------
-        # BRAIN ICON
-        # --------------------------------------------------
 
         self.mini_brain = ctk.CTkLabel(
             self.mini_frame,
@@ -195,61 +192,6 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         # ==================================================
-        # SIDE CONTROL MENU
-        # ==================================================
-
-        self.control_menu = ctk.CTkFrame(
-            self,
-            width=135,
-            height=90,
-            corner_radius=10,
-            fg_color="#202225"
-        )
-
-        self.control_menu.pack_propagate(False)
-
-        # --------------------------------------------------
-        # MAXIMIZE
-        # --------------------------------------------------
-
-        self.maximize_btn = ctk.CTkButton(
-            self.control_menu,
-            text="Maximize",
-            height=30,
-            corner_radius=7,
-            fg_color="#30343A",
-            hover_color="#444950",
-            command=self.restore
-        )
-
-        self.maximize_btn.pack(
-            fill="x",
-            padx=8,
-            pady=(8, 4)
-        )
-
-        # --------------------------------------------------
-        # STOP
-        # --------------------------------------------------
-
-        self.mini_stop_btn = ctk.CTkButton(
-            self.control_menu,
-            text="🔴 OFF",
-            height=30,
-            corner_radius=7,
-            fg_color="#D32F2F",
-            hover_color="#B71C1C",
-            text_color="white",
-            command=self.stop
-        )
-
-        self.mini_stop_btn.pack(
-            fill="x",
-            padx=8,
-            pady=(4, 8)
-        )
-
-        # ==================================================
         # DRAGGING
         # ==================================================
 
@@ -278,7 +220,7 @@ class FloatingRecorder(ctk.CTkToplevel):
             )
 
         # ==================================================
-        # HOVER EVENTS
+        # HOVER
         # ==================================================
 
         self.mini_frame.bind(
@@ -296,13 +238,6 @@ class FloatingRecorder(ctk.CTkToplevel):
             self.show_arrow
         )
 
-        # Keep arrow available while mouse moves from brain
-        # toward arrow.
-        self.arrow_button.bind(
-            "<Leave>",
-            self.arrow_leave
-        )
-
     # ======================================================
     # MINIMIZE
     # ======================================================
@@ -314,17 +249,13 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         self.is_minimized = True
 
-        # Remember current position
         x = self.winfo_x()
         y = self.winfo_y()
 
-        # Hide normal UI
+        # Hide normal recorder
         self.container.pack_forget()
 
-        # Hide control menu
-        self.control_menu.place_forget()
-
-        # Set minimized window size
+        # Make small window
         self.geometry(
             f"{self.mini_width}x{self.mini_height}+{x}+{y}"
         )
@@ -335,42 +266,8 @@ class FloatingRecorder(ctk.CTkToplevel):
             y=0
         )
 
-        # Arrow starts hidden
+        # Arrow hidden initially
         self.hide_arrow()
-
-    # ======================================================
-    # RESTORE / MAXIMIZE
-    # ======================================================
-
-    def restore(self):
-
-        if not self.is_minimized:
-            return
-
-        self.is_minimized = False
-
-        # Hide minimized controls
-        self.hide_arrow()
-        self.control_menu.place_forget()
-
-        x = self.winfo_x()
-        y = self.winfo_y()
-
-        # Hide brain
-        self.mini_frame.place_forget()
-
-        # Restore normal window
-        self.geometry(
-            f"{self.normal_width}x{self.normal_height}+{x}+{y}"
-        )
-
-        # Show normal UI
-        self.container.pack(
-            fill="both",
-            expand=True,
-            padx=3,
-            pady=3
-        )
 
     # ======================================================
     # SHOW ARROW
@@ -404,56 +301,6 @@ class FloatingRecorder(ctk.CTkToplevel):
             pass
 
     # ======================================================
-    # ARROW LEAVE
-    # ======================================================
-
-    def arrow_leave(self, event=None):
-
-        # Don't immediately hide it.
-        # This gives the user time to click the arrow
-        # or move toward the control menu.
-
-        self.after(
-            400,
-            self.check_arrow_position
-        )
-
-    def check_arrow_position(self):
-
-        if not self.is_minimized:
-            return
-
-        # Keep arrow visible if menu is open.
-        if self.control_menu.winfo_ismapped():
-            return
-
-        # Check pointer position.
-        try:
-
-            pointer_x = self.winfo_pointerx()
-            pointer_y = self.winfo_pointery()
-
-            window_x = self.winfo_rootx()
-            window_y = self.winfo_rooty()
-
-            relative_x = pointer_x - window_x
-            relative_y = pointer_y - window_y
-
-            # Keep arrow if cursor is still around
-            # the minimized recorder.
-            if (
-                -5 <= relative_x <= self.mini_width + 10
-                and
-                -5 <= relative_y <= self.mini_height + 10
-            ):
-                return
-
-        except Exception:
-            pass
-
-        self.hide_arrow()
-
-    # ======================================================
     # CONTROL MENU
     # ======================================================
 
@@ -462,19 +309,154 @@ class FloatingRecorder(ctk.CTkToplevel):
         if not self.is_minimized:
             return
 
-        # Hide arrow
-        self.arrow_button.place_forget()
+        # Close existing menu first
+        self.close_control_menu()
 
-        # Menu extends to the RIGHT of the minimized icon.
-        self.control_menu.place(
-            x=self.mini_width + 5,
-            y=-20
+        # Get recorder position
+        recorder_x = self.winfo_rootx()
+        recorder_y = self.winfo_rooty()
+
+        # Create a NEW top-level window
+        self.control_menu = ctk.CTkToplevel(
+            self
         )
 
+        self.control_menu.overrideredirect(True)
+        self.control_menu.attributes(
+            "-topmost",
+            True
+        )
+
+        self.control_menu.configure(
+            fg_color="#202225"
+        )
+
+        # Menu size
+        menu_width = 145
+        menu_height = 95
+
+        # Put menu to the RIGHT of recorder
+        menu_x = recorder_x + self.mini_width + 5
+        menu_y = recorder_y - 5
+
+        self.control_menu.geometry(
+            f"{menu_width}x{menu_height}+{menu_x}+{menu_y}"
+        )
+
+        # ==================================================
+        # MENU CONTENT
+        # ==================================================
+
+        menu_frame = ctk.CTkFrame(
+            self.control_menu,
+            corner_radius=10,
+            fg_color="#202225"
+        )
+
+        menu_frame.pack(
+            fill="both",
+            expand=True,
+            padx=2,
+            pady=2
+        )
+
+        # --------------------------------------------------
+        # MAXIMIZE
+        # --------------------------------------------------
+
+        maximize_btn = ctk.CTkButton(
+            menu_frame,
+            text="Maximize",
+            height=32,
+            corner_radius=7,
+            fg_color="#30343A",
+            hover_color="#444950",
+            command=self.restore
+        )
+
+        maximize_btn.pack(
+            fill="x",
+            padx=8,
+            pady=(8, 4)
+        )
+
+        # --------------------------------------------------
+        # STOP
+        # --------------------------------------------------
+
+        stop_btn = ctk.CTkButton(
+            menu_frame,
+            text="🔴 OFF",
+            height=32,
+            corner_radius=7,
+            fg_color="#D32F2F",
+            hover_color="#B71C1C",
+            text_color="white",
+            command=self.stop
+        )
+
+        stop_btn.pack(
+            fill="x",
+            padx=8,
+            pady=(4, 8)
+        )
+
+        # Make sure menu is visible
+        self.control_menu.deiconify()
         self.control_menu.lift()
+        self.control_menu.focus_force()
 
     # ======================================================
-    # UPDATE CURRENT APPLICATION
+    # CLOSE CONTROL MENU
+    # ======================================================
+
+    def close_control_menu(self):
+
+        if self.control_menu is not None:
+
+            try:
+                self.control_menu.destroy()
+            except Exception:
+                pass
+
+            self.control_menu = None
+
+    # ======================================================
+    # RESTORE / MAXIMIZE
+    # ======================================================
+
+    def restore(self):
+
+        self.close_control_menu()
+
+        if not self.is_minimized:
+            return
+
+        self.is_minimized = False
+
+        self.hide_arrow()
+
+        x = self.winfo_x()
+        y = self.winfo_y()
+
+        # Hide minimized brain
+        self.mini_frame.place_forget()
+
+        # Restore window
+        self.geometry(
+            f"{self.normal_width}x{self.normal_height}+{x}+{y}"
+        )
+
+        # Show normal UI
+        self.container.pack(
+            fill="both",
+            expand=True,
+            padx=3,
+            pady=3
+        )
+
+    # ======================================================
+    # UPDATE APP
     # ======================================================
 
     def update_app(self, app, title):
@@ -493,15 +475,17 @@ class FloatingRecorder(ctk.CTkToplevel):
             pass
 
     # ======================================================
-    # STOP RECORDING
+    # STOP
     # ======================================================
 
     def stop(self):
 
-        # Stop memory recorder
+        self.close_control_menu()
+
+        # Stop recorder
         self.stop_callback()
 
-        # Get main application
+        # Show main application
         app = self.master
 
         try:
@@ -533,3 +517,18 @@ class FloatingRecorder(ctk.CTkToplevel):
         self.geometry(
             f"+{x}+{y}"
         )
+
+        # If menu is open, move it with recorder
+        if self.control_menu is not None:
+
+            try:
+
+                menu_x = x + self.mini_width + 5
+                menu_y = y - 5
+
+                self.control_menu.geometry(
+                    f"+{menu_x}+{menu_y}"
+                )
+
+            except Exception:
+                pass
