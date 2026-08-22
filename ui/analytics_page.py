@@ -153,16 +153,5 @@ TODAY'S SUMMARY
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Coming Soon
-
-📈 Charts
-
-🔥 Productivity Score
-
-🧠 AI Work Summary
-
-⏳ Time Spent Per App
-
-📸 Screenshot Statistics
 """
         )
