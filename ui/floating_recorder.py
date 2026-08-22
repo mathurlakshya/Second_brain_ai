@@ -144,8 +144,8 @@ class FloatingRecorder(ctk.CTkToplevel):
         self.arrow_button = ctk.CTkButton(
             self,
             text="›",
-            width=20,
-            height=32,
+            width=18,
+            height=30,
             corner_radius=8,
             fg_color="#30343A",
             hover_color="#444950",
@@ -219,26 +219,20 @@ class FloatingRecorder(ctk.CTkToplevel):
                 self.do_move
             )
 
-        # Mouse hover
-        self.mini_frame.bind(
-            "<Enter>",
-            self.show_arrow
-        )
-
-        self.mini_frame.bind(
-            "<Leave>",
-            self.hide_arrow_later
-        )
-
-        self.mini_brain.bind(
-            "<Enter>",
-            self.show_arrow
-        )
-
-        self.mini_brain.bind(
-            "<Leave>",
-            self.hide_arrow_later
-        )
+            self.mini_frame.bind(
+                "<Enter>",
+                self.show_arrow
+            )
+            
+            self.mini_brain.bind(
+                "<Enter>",
+                self.show_arrow
+            )
+            
+            self.arrow_button.bind(
+                "<Enter>",
+                self.show_arrow
+            )
 
     # ==================================================
     # MINIMIZE
@@ -295,12 +289,13 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         if not self.is_minimized:
             return
-
+    
         self.arrow_button.place(
-            x=self.mini_size - 3,
+            x=30,
             y=8
         )
-
+    
+        self.arrow_button.lift()
     def hide_arrow_later(self, event=None):
 
         if self.mini_menu.winfo_ismapped():
@@ -330,9 +325,10 @@ class FloatingRecorder(ctk.CTkToplevel):
         self.arrow_button.place_forget()
 
         self.mini_menu.place(
-            x=-90,
+            x=-135,
             y=0
         )
+        self.mini_menu.lift()
 
     def close_mini_menu(self):
 
