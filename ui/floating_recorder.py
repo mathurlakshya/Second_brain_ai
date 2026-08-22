@@ -480,25 +480,28 @@ class FloatingRecorder(ctk.CTkToplevel):
 
     def stop(self):
 
-        self.close_control_menu()
-
-        # Stop recorder
+        print("🔴 FloatingRecorder OFF clicked")
+    
+        # The Dashboard handles:
+        # 1. stopping MemoryRecorder
+        # 2. destroying this window
+        # 3. clearing self.floating
+    
         self.stop_callback()
-
-        # Show main application
-        app = self.master
-
+    
         try:
-
+    
+            app = self.master
+    
             app.deiconify()
             app.lift()
             app.focus_force()
-
-        except Exception:
-            pass
-
-        # Close floating recorder
-        self.destroy()
+    
+        except Exception as e:
+    
+            print(
+                f"⚠️ Could not restore main app: {e}"
+            )
 
     # ======================================================
     # DRAGGING
