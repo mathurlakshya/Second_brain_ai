@@ -248,59 +248,48 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         if self.is_minimized:
             return
-
+    
         self.is_minimized = True
-
+    
         x = self.winfo_x()
         y = self.winfo_y()
-
+    
         self.container.pack_forget()
-
+    
         self.mini_frame.place(
             x=0,
-            y=0,
-            width=self.mini_size,
-            height=self.mini_size
+            y=0
         )
-
+    
         self.geometry(
             f"{self.mini_size}x{self.mini_size}+{x}+{y}"
         )
-
+    
         self.hide_arrow()
-
-    # ==================================================
-    # RESTORE
-    # ==================================================
-
     def restore(self):
 
         if not self.is_minimized:
             return
-
+    
         self.close_mini_menu()
-
+    
         self.is_minimized = False
-
+    
         x = self.winfo_x()
         y = self.winfo_y()
-
+    
         self.mini_frame.place_forget()
-
+    
         self.geometry(
             f"190x135+{x}+{y}"
         )
-
+    
         self.container.pack(
             fill="both",
             expand=True,
             padx=3,
             pady=3
         )
-
-    # ==================================================
-    # ARROW
-    # ==================================================
 
     def show_arrow(self, event=None):
 
