@@ -19,7 +19,7 @@ class Dashboard(ctk.CTkFrame):
         )
         
         self.floating = None
-
+        self.recording_session = False
         self.build_ui()
 
     # ---------------------------------------------------
@@ -337,47 +337,27 @@ class Dashboard(ctk.CTkFrame):
 
     def toggle_memory(self):
 
-    # ================= START RECORDING ================= #
-
+        # =====================================================
+        # START RECORDING
+        # =====================================================
+    
         if not self.recorder.running:
     
-            print("🟢 Starting memory recording...")
+            print("🟢 STARTING MEMORY RECORDING")
     
-            # Start recorder in background
+            self.recording_session = True
+    
+            # Start memory recorder
             threading.Thread(
                 target=self.recorder.start,
                 daemon=True
             ).start()
     
-            # IMPORTANT:
-            # Always create a new floating recorder if the previous
-            # one was destroyed.
-            try:
-                floating_exists = (
-                    self.floating is not None
-                    and self.floating.winfo_exists()
-                )
-            except Exception:
-                floating_exists = False
+            # ---------------------------------------------
+            # ALWAYS create a fresh FloatingRecorder
+            # ---------------------------------------------
     
-            if not floating_exists:
-    
-                self.floating = FloatingRecorder(
-                    self.winfo_toplevel(),
-                    self.toggle_memory
-                )
-    
-                print("🧠 Floating recorder created")
-    
-            else:
-    
-                # Bring existing floating recorder back
-                try:
-                    self.floating.deiconify()
-                    self.floating.lift()
-                    self.floating.attributes("-topmost", True)
-                except Exception:
-                    pass
+            self.create_floating_recorder()
     
             self.start_btn.configure(
                 text="🟢 Recording..."
@@ -387,30 +367,25 @@ class Dashboard(ctk.CTkFrame):
                 text="🟢 Recording"
             )
     
+            print("🧠 Floating recorder started")
     
-        # ================= STOP RECORDING ================= #
+        # =====================================================
+        # STOP RECORDING
+        # =====================================================
     
         else:
     
-            print("🔴 Stopping memory recording...")
+            print("🔴 STOPPING MEMORY RECORDING")
+    
+            self.recording_session = False
     
             self.recorder.stop()
     
+            # ---------------------------------------------
             # Destroy floating recorder
-            if self.floating is not None:
+            # ---------------------------------------------
     
-                try:
-    
-                    if self.floating.winfo_exists():
-                        self.floating.destroy()
-    
-                except Exception:
-                    pass
-    
-            # VERY IMPORTANT
-            # Remove the old reference so the next recording
-            # session creates a completely new floating recorder.
-            self.floating = None
+            self.destroy_floating_recorder()
     
             self.start_btn.configure(
                 text="▶ Start Memory"
@@ -437,7 +412,90 @@ class Dashboard(ctk.CTkFrame):
     # ---------------------------------------------------
     # LIVE STATUS UPDATE
     # ---------------------------------------------------
+    def create_floating_recorder(self):
 
+        # Destroy any stale recorder first
+        self.destroy_floating_recorder()
+    
+        try:
+    
+            root = self.winfo_toplevel()
+    
+            print("🧠 Creating FloatingRecorder...")
+    
+            self.floating = FloatingRecorder(
+                root,
+                self.toggle_memory
+            )
+    
+            # Make absolutely sure it is visible
+            self.floating.deiconify()
+            self.floating.lift()
+            self.floating.attributes("-topmost", True)
+    
+            # If window gets destroyed manually,
+            # clear the Dashboard reference.
+            self.floating.bind(
+                "<Destroy>",
+                self.on_floating_destroyed
+            )
+    
+            print("✅ FloatingRecorder CREATED")
+    
+        except Exception as e:
+    
+            self.floating = None
+    
+            print(
+                f"❌ Could not create FloatingRecorder: {e}"
+            )
+    
+    
+    def destroy_floating_recorder(self):
+    
+        floating = self.floating
+    
+        # Clear reference FIRST
+        self.floating = None
+    
+        if floating is None:
+            return
+    
+        try:
+    
+            if floating.winfo_exists():
+    
+                print("🗑️ Destroying FloatingRecorder...")
+    
+                floating.destroy()
+    
+        except Exception as e:
+    
+            print(
+                f"⚠️ FloatingRecorder destroy error: {e}"
+            )
+    
+    
+    def on_floating_destroyed(self, event=None):
+    
+        # Tkinter can trigger Destroy events for child widgets too,
+        # so only clear the reference if the actual Toplevel is gone.
+    
+        try:
+    
+            if self.floating is not None:
+    
+                if not self.floating.winfo_exists():
+    
+                    self.floating = None
+    
+                    print(
+                        "🧹 FloatingRecorder reference cleared"
+                    )
+    
+        except Exception:
+    
+            self.floating = None
     def update_status(self, app, title, timestamp):
 
         self.after(
