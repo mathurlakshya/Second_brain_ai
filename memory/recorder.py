@@ -56,7 +56,6 @@ class MemoryRecorder:
                 current_window = (app,title)
                 if title and current_window != self.last_window:
     
-                    print("1️⃣ Window changed")
     
                     now = datetime.datetime.now().strftime(
                         "%Y-%m-%d %H:%M:%S"
@@ -66,10 +65,6 @@ class MemoryRecorder:
                         self.user_id
                     )
     
-                    print(
-                        f"2️⃣ Screenshot retention: "
-                        f"{keep_screenshot}"
-                    )
     
                     screenshot_path = capture_screen()
     
@@ -82,22 +77,16 @@ class MemoryRecorder:
                         screenshot_path
                     )
     
-                    print("4️⃣ OCR completed")
-    
                     summary = summarize_screen(
                         screenshot_path,
                         ocr_text
                     )
-    
-                    print("5️⃣ Gemini summary completed")
     
                     combined = summary + "\n" + ocr_text
     
                     embedding = create_embedding(
                         combined
                     )
-    
-                    print("6️⃣ Embedding completed")
     
                     contains_error = 0
                     error_text = ""
