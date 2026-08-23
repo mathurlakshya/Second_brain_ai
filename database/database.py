@@ -259,4 +259,81 @@ def get_recent_memories(user_id, limit=10):
         conn.close()
     
         return rows    
-        
+
+def create_pending_memory(
+    user_id,
+    app,
+    title,
+    now,
+    screenshot=""
+):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO memories(
+            user_id,
+            app_name,
+            window_title,
+            timestamp,
+            screenshot,
+            summary,
+            ocr_text,
+            embedding,
+            contains_error,
+            error_text
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        user_id,
+        app,
+        title,
+        now,
+        screenshot,
+        "Processing...",
+        "",
+        "",
+        0,
+        ""
+    ))
+
+    memory_id = cursor.lastrowid
+
+    conn.commit()
+    conn.close()
+
+    return memory_id
+
+def update_memory(
+    memory_id,
+    summary,
+    ocr_text,
+    embedding,
+    contains_error=0,
+    error_text=""
+):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    embedding_json = json.dumps(embedding)
+
+    cursor.execute("""
+        UPDATE memories
+        SET
+            summary = ?,
+            ocr_text = ?,
+            embedding = ?,
+            contains_error = ?,
+            error_text = ?
+        WHERE id = ?
+    """, (
+        summary,
+        ocr_text,
+        embedding_json,
+        contains_error,
+        error_text,
+        memory_id
+    ))
+
+    conn.commit()
+    conn.close()
