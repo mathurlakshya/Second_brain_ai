@@ -256,7 +256,8 @@ class MemoryRecorder:
                 )
     
             # EXACTLY 5 SECOND INTERVAL
-            time.sleep(5)    def process_screenshot(
+            time.sleep(5)    
+    def process_screenshot(
             self,
             screenshot_path,
             app,
