@@ -70,352 +70,423 @@ class MemoryRecorder:
 
     def start(self):
 
-        # Already running
-        if self.running:
-
-            print(
-                "⚠️ Memory recorder is already running"
-            )
-
-            return
-
         self.running = True
-
-        print(
-            "🧠 Memory recorder started "
-            "(5 second capture interval)"
-        )
-
-        # ------------------------------------------------------
-        # Capture loop
-        # ------------------------------------------------------
-
+    
         while self.running:
-
-            cycle_start = time.monotonic()
-
+    
             try:
-
-                print(
-                    "\n🧠 Memory recorder cycle started"
-                )
-
-                # ----------------------------------------------
-                # Get current foreground window
-                # ----------------------------------------------
-
+                print("\n🧠 Memory recorder cycle started")
+    
+                # 1. Get current active window
                 app, title = self.get_active_window()
-
+    
+                print(f"🪟 Active window: {app} | {title}")
+    
+                if not title:
+                    time.sleep(5)
+                    continue
+    
+                # 2. Timestamp
+                now = datetime.datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+    
+                # 3. Screenshot setting
+                keep_screenshot = get_user_setting(
+                    self.user_id
+                )
+    
                 print(
-                    f"🪟 Active window: "
+                    f"2️⃣ Screenshot retention: "
+                    f"{keep_screenshot}"
+                )
+    
+                # 4. Capture screenshot
+                screenshot_path = capture_screen()
+    
+                print(
+                    f"3️⃣ Screenshot captured: "
+                    f"{screenshot_path}"
+                )
+    
+                # 5. OCR
+                ocr_text = extract_text(
+                    screenshot_path
+                )
+    
+                print("4️⃣ OCR completed")
+    
+                # 6. Gemini summary
+                summary = summarize_screen(
+                    screenshot_path,
+                    ocr_text
+                )
+    
+                print("5️⃣ Gemini summary completed")
+    
+                # 7. Embedding
+                combined = (
+                    summary +
+                    "\n" +
+                    ocr_text
+                )
+    
+                embedding = create_embedding(
+                    combined
+                )
+    
+                print("6️⃣ Embedding completed")
+    
+                # 8. Detect errors
+                contains_error = 0
+                error_text = ""
+    
+                keywords = [
+                    "Traceback",
+                    "Exception",
+                    "ImportError",
+                    "ModuleNotFoundError",
+                    "TypeError",
+                    "ValueError",
+                    "SyntaxError",
+                    "RuntimeError",
+                    "RESOURCE_EXHAUSTED",
+                    "AttributeError",
+                    "NameError"
+                ]
+    
+                for word in keywords:
+    
+                    if word.lower() in summary.lower():
+    
+                        contains_error = 1
+                        error_text = summary
+                        break
+    
+                # 9. Decide screenshot storage
+                stored_screenshot = (
+                    screenshot_path
+                    if keep_screenshot
+                    else ""
+                )
+    
+                print("7️⃣ Saving memory...")
+    
+                # 10. SAVE EVERY 5 SECONDS
+                save_memory(
+                    self.user_id,
+                    app,
+                    title,
+                    now,
+                    stored_screenshot,
+                    summary,
+                    ocr_text,
+                    embedding,
+                    contains_error,
+                    error_text
+                )
+    
+                print(
+                    f"8️⃣ ✅ Memory saved: "
                     f"{app} | {title}"
                 )
-
-                if not title:
-
-                    print(
-                        "⏳ No active window title. "
-                        "Skipping this cycle."
-                    )
-
-                else:
-
-                    # ------------------------------------------
-                    # Capture screenshot IMMEDIATELY
-                    # ------------------------------------------
-
-                    screenshot_path = capture_screen()
-
-                    print(
-                        f"📸 Screenshot captured: "
-                        f"{screenshot_path}"
-                    )
-
-                    # ------------------------------------------
-                    # IMPORTANT
-                    #
-                    # Processing happens in a separate thread.
-                    # Therefore the recorder does NOT wait for
-                    # OCR/Gemini/embedding before the next 5 sec
-                    # capture.
-                    # ------------------------------------------
-
-                    processing_thread = threading.Thread(
-                        target=self.process_screenshot,
-                        args=(
-                            screenshot_path,
+    
+                # 11. Delete temporary screenshot
+                if not keep_screenshot:
+    
+                    try:
+    
+                        if (
+                            screenshot_path
+                            and os.path.exists(
+                                screenshot_path
+                            )
+                        ):
+    
+                            os.remove(
+                                screenshot_path
+                            )
+    
+                            print(
+                                f"🗑️ Deleted temporary screenshot: "
+                                f"{screenshot_path}"
+                            )
+    
+                    except Exception as e:
+    
+                        print(
+                            f"⚠️ Screenshot cleanup failed: "
+                            f"{e}"
+                        )
+    
+                # ==================================================
+                # IMPORTANT:
+                # UPDATE DASHBOARD EVERY 5 SECONDS
+                # NOT ONLY WHEN WINDOW CHANGES
+                # ==================================================
+    
+                if self.callback:
+    
+                    try:
+    
+                        self.callback(
                             app,
-                            title
-                        ),
-                        daemon=True
-                    )
-
-                    processing_thread.start()
-
+                            title,
+                            now
+                        )
+    
+                    except Exception as callback_error:
+    
+                        print(
+                            "⚠️ Dashboard callback failed:",
+                            callback_error
+                        )
+    
+                # Remember current window
+                self.last_window = (
+                    app,
+                    title
+                )
+    
             except Exception as e:
-
+    
                 print(
-                    f"❌ MEMORY CAPTURE FAILED: "
+                    f"❌ MEMORY RECORDER FAILED: "
                     f"{type(e).__name__}: {e}"
                 )
-
-            # ==================================================
-            # KEEP CAPTURE INTERVAL AT 5 SECONDS
-            # ==================================================
-
-            elapsed = (
-                time.monotonic()
-                - cycle_start
-            )
-
-            remaining = max(
-                0,
-                self.CAPTURE_INTERVAL - elapsed
-            )
-
-            if remaining > 0:
-
-                time.sleep(remaining)
-
-        print(
-            "🔴 Memory recorder loop stopped"
-        )
-
-    # ==========================================================
-    # PROCESS SCREENSHOT
-    # ==========================================================
-
-    def process_screenshot(
-        self,
-        screenshot_path,
-        app,
-        title
-    ):
-
-        keep_screenshot = False
-
-        try:
-
-            print(
-                f"🔄 Processing screenshot: "
-                f"{app} | {title}"
-            )
-
-            # --------------------------------------------------
-            # Timestamp
-            # --------------------------------------------------
-
-            now = datetime.datetime.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
-
-            # --------------------------------------------------
-            # Screenshot retention setting
-            # --------------------------------------------------
-
-            keep_screenshot = get_user_setting(
-                self.user_id
-            )
-
-            print(
-                f"📸 Screenshot retention: "
-                f"{keep_screenshot}"
-            )
-
-            # --------------------------------------------------
-            # OCR
-            # --------------------------------------------------
-
-            ocr_text = extract_text(
-                screenshot_path
-            )
-
-            print(
-                "4️⃣ OCR completed"
-            )
-
-            # --------------------------------------------------
-            # Gemini summary
-            # --------------------------------------------------
-
-            summary = summarize_screen(
-                screenshot_path,
-                ocr_text
-            )
-
-            print(
-                "5️⃣ Gemini summary completed"
-            )
-
-            # --------------------------------------------------
-            # Embedding
-            # --------------------------------------------------
-
-            combined = (
-                str(summary)
-                + "\n"
-                + str(ocr_text)
-            )
-
-            embedding = create_embedding(
-                combined
-            )
-
-            print(
-                "6️⃣ Embedding completed"
-            )
-
-            # --------------------------------------------------
-            # Error detection
-            # --------------------------------------------------
-
-            contains_error = 0
-            error_text = ""
-
-            keywords = [
-
-                "Traceback",
-                "Exception",
-                "ImportError",
-                "ModuleNotFoundError",
-                "TypeError",
-                "ValueError",
-                "SyntaxError",
-                "RuntimeError",
-                "RESOURCE_EXHAUSTED",
-                "AttributeError",
-                "NameError"
-
-            ]
-
-            summary_text = str(summary)
-
-            for word in keywords:
-
-                if word.lower() in summary_text.lower():
-
-                    contains_error = 1
-
-                    error_text = summary_text
-
-                    break
-
-            # --------------------------------------------------
-            # Screenshot path
-            # --------------------------------------------------
-
-            stored_screenshot = (
-                screenshot_path
-                if keep_screenshot
-                else ""
-            )
-
-            # --------------------------------------------------
-            # SAVE MEMORY
-            # --------------------------------------------------
-
-            print(
-                "7️⃣ Saving memory..."
-            )
-
-            save_memory(
-                self.user_id,
-                app,
-                title,
-                now,
-                stored_screenshot,
-                summary,
-                ocr_text,
-                embedding,
-                contains_error,
-                error_text
-            )
-
-            print(
-                f"8️⃣ ✅ Memory saved: "
-                f"{app} | {title}"
-            )
-
-            # --------------------------------------------------
-            # Update Dashboard
-            # --------------------------------------------------
-
-            if self.callback:
-
-                try:
-
-                    self.callback(
-                        app,
-                        title,
-                        now
-                    )
-
-                except Exception as e:
-
-                    print(
-                        f"⚠️ Dashboard callback failed: "
-                        f"{e}"
-                    )
-
-            # --------------------------------------------------
-            # Delete temporary screenshot
-            # --------------------------------------------------
-
-            if not keep_screenshot:
-
-                try:
-
-                    if (
-                        screenshot_path
-                        and os.path.exists(
-                            screenshot_path
+    
+            # EXACTLY 5 SECOND INTERVAL
+            time.sleep(5)    def process_screenshot(
+            self,
+            screenshot_path,
+            app,
+            title
+        ):
+    
+            keep_screenshot = False
+    
+            try:
+    
+                print(
+                    f"🔄 Processing screenshot: "
+                    f"{app} | {title}"
+                )
+    
+                # --------------------------------------------------
+                # Timestamp
+                # --------------------------------------------------
+    
+                now = datetime.datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                )
+    
+                # --------------------------------------------------
+                # Screenshot retention setting
+                # --------------------------------------------------
+    
+                keep_screenshot = get_user_setting(
+                    self.user_id
+                )
+    
+                print(
+                    f"📸 Screenshot retention: "
+                    f"{keep_screenshot}"
+                )
+    
+                # --------------------------------------------------
+                # OCR
+                # --------------------------------------------------
+    
+                ocr_text = extract_text(
+                    screenshot_path
+                )
+    
+                print(
+                    "4️⃣ OCR completed"
+                )
+    
+                # --------------------------------------------------
+                # Gemini summary
+                # --------------------------------------------------
+    
+                summary = summarize_screen(
+                    screenshot_path,
+                    ocr_text
+                )
+    
+                print(
+                    "5️⃣ Gemini summary completed"
+                )
+    
+                # --------------------------------------------------
+                # Embedding
+                # --------------------------------------------------
+    
+                combined = (
+                    str(summary)
+                    + "\n"
+                    + str(ocr_text)
+                )
+    
+                embedding = create_embedding(
+                    combined
+                )
+    
+                print(
+                    "6️⃣ Embedding completed"
+                )
+    
+                # --------------------------------------------------
+                # Error detection
+                # --------------------------------------------------
+    
+                contains_error = 0
+                error_text = ""
+    
+                keywords = [
+    
+                    "Traceback",
+                    "Exception",
+                    "ImportError",
+                    "ModuleNotFoundError",
+                    "TypeError",
+                    "ValueError",
+                    "SyntaxError",
+                    "RuntimeError",
+                    "RESOURCE_EXHAUSTED",
+                    "AttributeError",
+                    "NameError"
+    
+                ]
+    
+                summary_text = str(summary)
+    
+                for word in keywords:
+    
+                    if word.lower() in summary_text.lower():
+    
+                        contains_error = 1
+    
+                        error_text = summary_text
+    
+                        break
+    
+                # --------------------------------------------------
+                # Screenshot path
+                # --------------------------------------------------
+    
+                stored_screenshot = (
+                    screenshot_path
+                    if keep_screenshot
+                    else ""
+                )
+    
+                # --------------------------------------------------
+                # SAVE MEMORY
+                # --------------------------------------------------
+    
+                print(
+                    "7️⃣ Saving memory..."
+                )
+    
+                save_memory(
+                    self.user_id,
+                    app,
+                    title,
+                    now,
+                    stored_screenshot,
+                    summary,
+                    ocr_text,
+                    embedding,
+                    contains_error,
+                    error_text
+                )
+    
+                print(
+                    f"8️⃣ ✅ Memory saved: "
+                    f"{app} | {title}"
+                )
+    
+                # --------------------------------------------------
+                # Update Dashboard
+                # --------------------------------------------------
+    
+                if self.callback:
+    
+                    try:
+    
+                        self.callback(
+                            app,
+                            title,
+                            now
                         )
-                    ):
-
-                        os.remove(
-                            screenshot_path
-                        )
-
+    
+                    except Exception as e:
+    
                         print(
-                            f"🗑️ Deleted temporary screenshot: "
-                            f"{screenshot_path}"
+                            f"⚠️ Dashboard callback failed: "
+                            f"{e}"
                         )
-
-                except Exception as e:
-
-                    print(
-                        f"⚠️ Screenshot cleanup failed: "
-                        f"{e}"
-                    )
-
-        except Exception as e:
-
-            print(
-                f"❌ MEMORY PROCESSING FAILED: "
-                f"{type(e).__name__}: {e}"
-            )
-
-            # --------------------------------------------------
-            # Cleanup screenshot even if processing fails
-            # --------------------------------------------------
-
-            if (
-                not keep_screenshot
-                and screenshot_path
-            ):
-
-                try:
-
-                    if os.path.exists(
-                        screenshot_path
-                    ):
-
-                        os.remove(
+    
+                # --------------------------------------------------
+                # Delete temporary screenshot
+                # --------------------------------------------------
+    
+                if not keep_screenshot:
+    
+                    try:
+    
+                        if (
                             screenshot_path
+                            and os.path.exists(
+                                screenshot_path
+                            )
+                        ):
+    
+                            os.remove(
+                                screenshot_path
+                            )
+    
+                            print(
+                                f"🗑️ Deleted temporary screenshot: "
+                                f"{screenshot_path}"
+                            )
+    
+                    except Exception as e:
+    
+                        print(
+                            f"⚠️ Screenshot cleanup failed: "
+                            f"{e}"
                         )
-
-                except Exception:
-                    pass
+    
+            except Exception as e:
+    
+                print(
+                    f"❌ MEMORY PROCESSING FAILED: "
+                    f"{type(e).__name__}: {e}"
+                )
+    
+                # --------------------------------------------------
+                # Cleanup screenshot even if processing fails
+                # --------------------------------------------------
+    
+                if (
+                    not keep_screenshot
+                    and screenshot_path
+                ):
+    
+                    try:
+    
+                        if os.path.exists(
+                            screenshot_path
+                        ):
+    
+                            os.remove(
+                                screenshot_path
+                            )
+    
+                    except Exception:
+                        pass
 
     # ==========================================================
     # STOP
