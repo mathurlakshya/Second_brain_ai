@@ -192,7 +192,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         # SIDE ARROW
         # ==================================================
 
-       self.arrow_button = ctk.CTkButton(
+        self.arrow_button = ctk.CTkButton(
             self,
             text="›",
             width=20,
