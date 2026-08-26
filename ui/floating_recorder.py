@@ -192,15 +192,15 @@ class FloatingRecorder(ctk.CTkToplevel):
         # SIDE ARROW
         # ==================================================
 
-        self.arrow_button = ctk.CTkButton(
+       self.arrow_button = ctk.CTkButton(
             self,
             text="›",
-            width=18,
+            width=20,
             height=30,
             corner_radius=8,
             fg_color="#30343A",
             hover_color="#4A4F57",
-            font=("Segoe UI", 17, "bold"),
+            font=("Segoe UI", 18, "bold"),
             command=self.toggle_bar
         )
 
@@ -436,7 +436,7 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         if not self.is_minimized:
             return
-
+    
         if self.bar_open:
             self.close_bar()
         else:
@@ -448,24 +448,39 @@ class FloatingRecorder(ctk.CTkToplevel):
 
     def open_bar(self):
 
+        if not self.is_minimized:
+            return
+    
         self.bar_open = True
-
+    
         x = self.winfo_x()
         y = self.winfo_y()
-
+    
         self.geometry(
             f"{self.bar_width}x{self.bar_height}+{x}+{y}"
         )
-
+    
         self.mini_frame.place_forget()
-
+    
         self.control_bar.place(
             x=0,
             y=0
         )
-
+    
         self.control_bar.lift()
-
+    
+        # Change arrow to CLOSE arrow
+        self.arrow_button.configure(
+            text="‹"
+        )
+    
+        self.arrow_button.place(
+            x=self.bar_width - 21,
+            y=10
+        )
+    
+        self.arrow_button.lift()
+    
         self.update_recording_visuals()
 
     # ==================================================
@@ -474,24 +489,37 @@ class FloatingRecorder(ctk.CTkToplevel):
 
     def close_bar(self):
 
+        if not self.bar_open:
+            return
+    
         self.bar_open = False
-
+    
         x = self.winfo_x()
         y = self.winfo_y()
-
+    
         self.geometry(
             f"{self.mini_width}x{self.mini_height}+{x}+{y}"
         )
-
+    
         self.control_bar.place_forget()
-
+    
         self.mini_frame.place(
             x=0,
             y=0
         )
-
-        self.hide_arrow()
-
+    
+        # Change arrow back to OPEN arrow
+        self.arrow_button.configure(
+            text="›"
+        )
+    
+        # Put arrow back inside the small icon
+        self.arrow_button.place(
+            x=self.mini_width - 21,
+            y=10
+        )
+    
+        self.arrow_button.lift()
     # ==================================================
     # RESTORE
     # ==================================================
@@ -603,21 +631,19 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         if self.recording:
             return
-
+    
         print("🟢 FloatingRecorder ON clicked")
-
+    
         self.recording = True
-
-        # Dashboard's toggle_memory() starts the recorder.
+    
         try:
             self.stop_callback()
         except Exception as e:
             print(
                 f"⚠️ Start callback failed: {e}"
             )
-
+    
         self.update_recording_visuals()
-
     # ==================================================
     # UPDATE APP
     # ==================================================
@@ -644,26 +670,23 @@ class FloatingRecorder(ctk.CTkToplevel):
     def stop(self):
 
         print("🔴 FloatingRecorder OFF clicked")
-
+    
         self.recording = False
-
-        # Stop the actual MemoryRecorder.
+    
+        # Stop the actual memory recorder.
         try:
             self.stop_callback()
         except Exception as e:
             print(
                 f"⚠️ Stop callback failed: {e}"
             )
-
+    
         # IMPORTANT:
-        # Do NOT destroy the floating recorder.
-        # Do NOT open/deiconify the main application.
-        #
-        # The floating recorder remains available so
-        # the user can turn recording back ON directly.
-
+        # Do NOT call self.destroy()
+        # Do NOT hide the floating recorder.
+        # Do NOT open the main application.
+    
         self.update_recording_visuals()
-
     # ==================================================
     # CLOSE FLOATING RECORDER
     # ==================================================
