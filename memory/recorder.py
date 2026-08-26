@@ -5,6 +5,7 @@ import psutil
 import datetime
 import time
 
+from concurrent.futures import ThreadPoolExecutor
 from vision.screenshot import capture_screen
 from ai.gemini import summarize_screen
 from vision.ocr import extract_text
@@ -26,6 +27,10 @@ class MemoryRecorder:
         self.running = False
         self.last_window = None
         self.callback = callback
+
+        self.processing_pool = ThreadPoolExecutor(
+            max_workers=1
+        )
 
     # --------------------------------------------------
     # ACTIVE WINDOW
@@ -87,7 +92,7 @@ class MemoryRecorder:
                     continue
 
                 current_window = (app, title)
-
+            
                 # ==========================================
                 # 2. CAPTURE SCREENSHOT
                 # ==========================================
@@ -311,3 +316,146 @@ class MemoryRecorder:
         self.running = False
 
         print("🛑 Memory recorder stopped")
+
+    def process_memory(
+        self,
+        memory_id,
+        screenshot_path,
+        keep_screenshot
+    ):
+    
+        try:
+    
+            # ==========================================
+            # OCR
+            # ==========================================
+    
+            print(
+                f"🔎 OCR started for memory {memory_id}"
+            )
+    
+            ocr_text = extract_text(
+                screenshot_path
+            )
+    
+            print(
+                f"✅ OCR completed for memory {memory_id}"
+            )
+    
+            # ==========================================
+            # GEMINI
+            # ==========================================
+    
+            summary = summarize_screen(
+                screenshot_path,
+                ocr_text
+            )
+    
+            print(
+                f"✅ Gemini completed for memory {memory_id}"
+            )
+    
+            # ==========================================
+            # EMBEDDING
+            # ==========================================
+    
+            combined = (
+                summary +
+                "\n" +
+                ocr_text
+            )
+    
+            embedding = create_embedding(
+                combined
+            )
+    
+            print(
+                f"✅ Embedding completed for memory {memory_id}"
+            )
+    
+            # ==========================================
+            # ERROR DETECTION
+            # ==========================================
+    
+            contains_error = 0
+            error_text = ""
+    
+            keywords = [
+                "Traceback",
+                "Exception",
+                "ImportError",
+                "ModuleNotFoundError",
+                "TypeError",
+                "ValueError",
+                "SyntaxError",
+                "RuntimeError",
+                "RESOURCE_EXHAUSTED",
+                "AttributeError",
+                "NameError"
+            ]
+    
+            for word in keywords:
+    
+                if word.lower() in summary.lower():
+    
+                    contains_error = 1
+                    error_text = summary
+    
+                    break
+    
+            # ==========================================
+            # UPDATE MEMORY
+            # ==========================================
+    
+            update_memory(
+                memory_id,
+                summary,
+                ocr_text,
+                embedding,
+                contains_error,
+                error_text
+            )
+    
+            print(
+                f"🧠 Memory {memory_id} fully processed"
+            )
+    
+        except Exception as e:
+    
+            print(
+                f"❌ Background processing error "
+                f"for memory {memory_id}: "
+                f"{type(e).__name__}: {e}"
+            )
+    
+        finally:
+    
+            # ==========================================
+            # DELETE TEMP SCREENSHOT
+            # ==========================================
+    
+            if not keep_screenshot:
+    
+                try:
+    
+                    if (
+                        screenshot_path
+                        and os.path.exists(
+                            screenshot_path
+                        )
+                    ):
+    
+                        os.remove(
+                            screenshot_path
+                        )
+    
+                        print(
+                            f"🗑️ Deleted temporary screenshot: "
+                            f"{screenshot_path}"
+                        )
+    
+                except Exception as e:
+    
+                    print(
+                        f"⚠️ Screenshot cleanup failed: {e}"
+                    )
