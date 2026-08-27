@@ -9,7 +9,7 @@ print("✅ Gemini client initialized")
 CURRENT_CONTEXT = ""
 CHAT_HISTORY = []
 MEMORY_CHAT_HISTORY = []
-MODEL = 'gemini-3.1-flash-lite'
+MODEL = 'gemini-3.7-flash'
 def ask_jarvis(question):
     
     print("📩 User asked:", question)
