@@ -1,4 +1,3 @@
-```python
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -600,4 +599,3 @@ Give a detailed, easy-to-read answer.
             "I couldn't answer from your memories right now.\n\n"
             f"Error: {e}"
         )
-```
