@@ -745,39 +745,24 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         if not self.recording:
             return
-
+    
         print("🔴 FloatingRecorder OFF clicked")
-
-        # IMPORTANT:
-        # ONLY turn recording OFF.
-        #
-        # NEVER call:
-        # self.destroy()
-        #
-        # NEVER call:
-        # self.withdraw()
-        #
-        # NEVER remove the FloatingRecorder.
-
+    
+        # Change the UI state.
         self.recording = False
-
-        # Tell parent to STOP memory recording.
+    
+        # Tell the real recorder to stop.
         if self.stop_callback:
-
             try:
                 self.stop_callback()
-
             except Exception as e:
-
-                print(
-                    f"⚠️ Stop callback failed: {e}"
-                )
-
+                print(f"⚠️ Stop callback failed: {e}")
+    
+        # IMPORTANT:
+        # Do NOT destroy the FloatingRecorder.
         self.update_recording_visuals()
-
-        print(
-            "⏹ Recording stopped — FloatingRecorder remains visible"
-        )
+    
+        print("⏹ Recording stopped — FloatingRecorder remains visible")
 
     # ==================================================
     # UPDATE CURRENT APP
