@@ -1,21 +1,128 @@
+```python
 from google import genai
+from google.genai import types
 from PIL import Image
 
 from config import GEMINI_API_KEY
 from ai.prompts import SYSTEM_PROMPT
-from services.app_state import AppState
-client = genai.Client(api_key=GEMINI_API_KEY)
+from database.query import get_recent_memories
+
+import time
+
+
+# ============================================================
+# GEMINI CONFIGURATION
+# ============================================================
+
+MODEL = "gemini-3.7-flash"
+
+# Your existing API key from config.py
+if not GEMINI_API_KEY:
+    raise RuntimeError(
+        "GEMINI_API_KEY is missing. "
+        "Check your config.py / environment variable."
+    )
+
+client = genai.Client(
+    api_key=GEMINI_API_KEY
+)
+
 print("✅ Gemini client initialized")
+
+
+# ============================================================
+# GLOBAL STATE
+# ============================================================
+
 CURRENT_CONTEXT = ""
+
 CHAT_HISTORY = []
+
 MEMORY_CHAT_HISTORY = []
-MODEL = 'gemini-3.7-flash'
+
+
+# ============================================================
+# GEMINI REQUEST HELPER
+# ============================================================
+
+def generate_content(
+    contents,
+    thinking_level="low",
+    max_retries=3
+):
+    """
+    Central Gemini request function.
+
+    Handles temporary 503 / unavailable errors without
+    crashing the application.
+    """
+
+    for attempt in range(max_retries):
+
+        try:
+
+            response = client.models.generate_content(
+                model=MODEL,
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    thinking_config=types.ThinkingConfig(
+                        thinking_level=thinking_level
+                    )
+                )
+            )
+
+            return response
+
+        except Exception as e:
+
+            error_text = str(e)
+
+            # Temporary Gemini server overload
+            if "503" in error_text or "UNAVAILABLE" in error_text:
+
+                wait_time = 2 ** attempt
+
+                print(
+                    f"⚠️ Gemini temporarily unavailable. "
+                    f"Retrying in {wait_time}s..."
+                )
+
+                time.sleep(wait_time)
+
+                continue
+
+            # Authentication problem
+            if "401" in error_text or "UNAUTHENTICATED" in error_text:
+
+                print(
+                    "❌ Gemini authentication failed.\n"
+                    "Check GEMINI_API_KEY in your config.py."
+                )
+
+                raise
+
+            # Other error
+            print(
+                f"❌ Gemini request failed: "
+                f"{type(e).__name__}: {e}"
+            )
+
+            raise
+
+    raise RuntimeError(
+        "Gemini is currently unavailable after multiple retries."
+    )
+
+
+# ============================================================
+# NORMAL JARVIS CHAT
+# ============================================================
+
 def ask_jarvis(question):
-    
-    print("📩 User asked:", question)
 
     global CHAT_HISTORY
-    global MODEL
+
+    print("📩 User asked:", question)
 
     history = ""
 
@@ -37,38 +144,60 @@ User:
 
     print("🚀 Sending request to Gemini...")
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=prompt
-    )
-
-    print("✅ Gemini responded")
-
-    answer = response.text
-
-    CHAT_HISTORY.append(("User", question))
-    CHAT_HISTORY.append(("JARVIS", answer))
-
-    if len(CHAT_HISTORY) > 20:
-     CHAT_HISTORY = CHAT_HISTORY[-20:]
-
-    return answer
-
-    
-def analyze_screen(image_path):
-    global MODEL
     try:
+
+        response = generate_content(
+            prompt,
+            thinking_level="low"
+        )
+
+        print("✅ Gemini responded")
+
+        answer = response.text or "I couldn't generate a response."
+
+        CHAT_HISTORY.append(
+            ("User", question)
+        )
+
+        CHAT_HISTORY.append(
+            ("JARVIS", answer)
+        )
+
+        # Keep last 20 messages
+        if len(CHAT_HISTORY) > 20:
+
+            CHAT_HISTORY = CHAT_HISTORY[-20:]
+
+        return answer
+
+    except Exception as e:
+
+        print(
+            f"❌ JARVIS ERROR: "
+            f"{type(e).__name__}: {e}"
+        )
+
+        return (
+            "Sorry, I couldn't connect to Gemini right now.\n\n"
+            f"Error: {e}"
+        )
+
+
+# ============================================================
+# SCREEN ANALYSIS
+# ============================================================
+
+def analyze_screen(image_path):
+
+    try:
+
+        print(
+            f"👁️ Analyzing screen: {image_path}"
+        )
 
         image = Image.open(image_path)
 
-        response = client.models.generate_content(
-
-           model=MODEL,
-
-            contents=[
-                image,
-                
-"""
+        prompt = """
 You are JARVIS, an intelligent desktop AI assistant.
 
 Carefully analyze EVERYTHING visible on the user's screen.
@@ -106,30 +235,41 @@ summarize it.
 Return a detailed explanation of everything you understand.
 
 This analysis will later be used to answer user questions.
-
 """
-    ]
-)
 
-        return response.text
+        response = generate_content(
+            [
+                image,
+                prompt
+            ],
+            thinking_level="low"
+        )
+
+        return response.text or ""
 
     except Exception as e:
+
+        print(
+            f"❌ Vision analysis failed: {e}"
+        )
+
         return f"Vision Error: {e}"
-    
-def summarize_screen(image_path, ocr_text=""):
-    global MODEL
+
+
+# ============================================================
+# SCREEN SUMMARY
+# ============================================================
+
+def summarize_screen(
+    image_path,
+    ocr_text=""
+):
+
     try:
 
         image = Image.open(image_path)
 
-        response = client.models.generate_content(
-
-            model=MODEL,
-
-            contents=[
-
-                image,
-                f"""
+        prompt = f"""
 You are JARVIS.
 
 Below is OCR text extracted from the screenshot.
@@ -155,25 +295,45 @@ Explain:
 • Important facts
 
 Keep it concise.
-"""            ]
+"""
+
+        response = generate_content(
+            [
+                image,
+                prompt
+            ],
+            thinking_level="low"
         )
 
-        return response.text
+        return response.text or ""
 
     except Exception as e:
 
-        return f"Summary Error: {e}"    
-    
+        print(
+            f"❌ Screen summary failed: {e}"
+        )
+
+        return f"Summary Error: {e}"
+
+
+# ============================================================
+# SAVE CURRENT SCREEN CONTEXT
+# ============================================================
+
 def save_context(text):
 
     global CURRENT_CONTEXT
 
-    CURRENT_CONTEXT = text    
+    CURRENT_CONTEXT = text
+
+
+# ============================================================
+# ASK ABOUT CURRENT SCREEN
+# ============================================================
 
 def ask_about_screen(question):
 
     global CURRENT_CONTEXT
-    global MODEL
 
     prompt = f"""
 You are JARVIS.
@@ -187,6 +347,7 @@ Here is your complete analysis:
 The user is now asking a question about that screen.
 
 Question:
+
 {question}
 
 Rules:
@@ -205,36 +366,60 @@ Rules:
 Be detailed and educational.
 """
 
-    response = client.models.generate_content(
-        model=MODEL,
-        contents=prompt
-    )
+    try:
 
-    return response.text
+        response = generate_content(
+            prompt,
+            thinking_level="medium"
+        )
 
-from database.query import get_recent_memories
+        return response.text or ""
+
+    except Exception as e:
+
+        print(
+            f"❌ Current screen question failed: {e}"
+        )
+
+        return (
+            "I couldn't analyze the current screen right now.\n\n"
+            f"Error: {e}"
+        )
+
+
+# ============================================================
+# ASK ABOUT RECENT MEMORIES
+# ============================================================
 
 def ask_memory(question):
-    global MODEL
+
     memories = get_recent_memories()
 
     memory_text = ""
 
-    for time, app, title, screenshot, summary in memories:
+    for (
+        time_value,
+        app,
+        title,
+        screenshot,
+        summary
+    ) in memories:
 
         memory_text += f"""
-        Time: {time}
+Time:
+{time_value}
 
-        Application: {app}
+Application:
+{app}
 
-        Window: {title}
+Window:
+{title}
 
-        Summary:
+Summary:
+{summary}
 
-        {summary}
-
-        -----------------------------------
-        """
+-----------------------------------
+"""
 
     prompt = f"""
 You are JARVIS.
@@ -252,47 +437,69 @@ Question:
 
     try:
 
-        response = client.models.generate_content(
-            model=MODEL,
-            contents=prompt
+        response = generate_content(
+            prompt,
+            thinking_level="medium"
         )
 
-        return response.text
+        return response.text or ""
 
     except Exception as e:
-        return str(e)
+
+        print(
+            f"❌ Memory question failed: {e}"
+        )
+
+        return (
+            "I couldn't search your memories right now.\n\n"
+            f"Error: {e}"
+        )
+
+
+# ============================================================
+# SEMANTIC MEMORY CHAT
+# ============================================================
 
 def ask_memory_chat(question):
-    
+
     from database.semantic_search import semantic_search
 
     memories = semantic_search(question)
 
     memory_text = ""
 
-    for score, time, app, title, summary, ocr in memories:
+    for (
+        score,
+        time_value,
+        app,
+        title,
+        summary,
+        ocr
+    ) in memories:
 
-      memory_text += f"""
+        memory_text += f"""
 
-        Time: {time}
+Time:
+{time_value}
 
-        Application: {app}
+Application:
+{app}
 
-        Title: {title}
+Title:
+{title}
 
-        Summary:
+Summary:
+{summary}
 
-        {summary}
+Screen Text:
+{ocr}
 
-        Screen Text:
+-----------------------------------
 
-        {ocr}
-
-        """
+"""
 
     global MEMORY_CHAT_HISTORY
-    global MODEL
-    
+
     history = ""
 
     for role, text in MEMORY_CHAT_HISTORY:
@@ -307,17 +514,14 @@ Below are memories collected from the user's computer.
 Each memory contains:
 
 • Timestamp
-
 • Application
-
 • Window Title
-
 • Summary
-
 • Everything that was visible on the screen
 
-The OCR text contains documents, browser pages, code, terminal output,
-PDFs, emails, notes, filenames, URLs and anything readable.
+The OCR text contains documents, browser pages, code,
+terminal output, PDFs, emails, notes, filenames,
+URLs and anything readable.
 
 Use BOTH the summaries and OCR text to answer.
 
@@ -359,22 +563,41 @@ User Question:
 
 Give a detailed, easy-to-read answer.
 """
-    response = client.models.generate_content(
-    model=MODEL,
-    contents=prompt
-    )
 
-    answer = response.text
+    try:
 
-    MEMORY_CHAT_HISTORY.append(
-    ("User", question)
-    )
+        response = generate_content(
+            prompt,
+            thinking_level="medium"
+        )
 
-    MEMORY_CHAT_HISTORY.append(
-        ("JARVIS", answer)
-    )
+        answer = response.text or ""
 
-    if len(MEMORY_CHAT_HISTORY) > 100:
-     MEMORY_CHAT_HISTORY = MEMORY_CHAT_HISTORY[-100:]
+        MEMORY_CHAT_HISTORY.append(
+            ("User", question)
+        )
 
-    return answer 
+        MEMORY_CHAT_HISTORY.append(
+            ("JARVIS", answer)
+        )
+
+        # Keep last 100 messages
+        if len(MEMORY_CHAT_HISTORY) > 100:
+
+            MEMORY_CHAT_HISTORY = (
+                MEMORY_CHAT_HISTORY[-100:]
+            )
+
+        return answer
+
+    except Exception as e:
+
+        print(
+            f"❌ Memory chat failed: {e}"
+        )
+
+        return (
+            "I couldn't answer from your memories right now.\n\n"
+            f"Error: {e}"
+        )
+```
