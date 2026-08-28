@@ -13,8 +13,8 @@ import time
 # GEMINI CONFIGURATION
 # ============================================================
 
-MODEL = "gemini-3.7-flash"
-
+MODEL = "gemini-3.6-flash"
+FALLBACK_MODEL = "gemini-3.7-flash"
 # Your existing API key from config.py
 if not GEMINI_API_KEY:
     raise RuntimeError(
@@ -44,72 +44,83 @@ MEMORY_CHAT_HISTORY = []
 # GEMINI REQUEST HELPER
 # ============================================================
 
-def generate_content(
-    contents,
-    thinking_level="low",
-    max_retries=3
-):
-    """
-    Central Gemini request function.
+def generate_content(contents, thinking_level="low", max_retries=2):
 
-    Handles temporary 503 / unavailable errors without
-    crashing the application.
-    """
+    models_to_try = [
+        MODEL,
+        FALLBACK_MODEL
+    ]
 
-    for attempt in range(max_retries):
+    last_error = None
 
-        try:
+    for model_name in models_to_try:
 
-            response = client.models.generate_content(
-                model=MODEL,
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    thinking_config=types.ThinkingConfig(
-                        thinking_level=thinking_level
+        for attempt in range(max_retries):
+
+            try:
+
+                print(
+                    f"🚀 Gemini request: {model_name} "
+                    f"(attempt {attempt + 1})"
+                )
+
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        thinking_config=types.ThinkingConfig(
+                            thinking_level=thinking_level
+                        )
                     )
                 )
-            )
-
-            return response
-
-        except Exception as e:
-
-            error_text = str(e)
-
-            # Temporary Gemini server overload
-            if "503" in error_text or "UNAVAILABLE" in error_text:
-
-                wait_time = 2 ** attempt
 
                 print(
-                    f"⚠️ Gemini temporarily unavailable. "
-                    f"Retrying in {wait_time}s..."
+                    f"✅ Gemini response received "
+                    f"from {model_name}"
                 )
 
-                time.sleep(wait_time)
+                return response
 
-                continue
+            except Exception as e:
 
-            # Authentication problem
-            if "401" in error_text or "UNAUTHENTICATED" in error_text:
+                last_error = e
+                error_text = str(e)
 
-                print(
-                    "❌ Gemini authentication failed.\n"
-                    "Check GEMINI_API_KEY in your config.py."
-                )
+                if (
+                    "503" in error_text
+                    or "UNAVAILABLE" in error_text
+                ):
+
+                    wait_time = 2 ** attempt
+
+                    print(
+                        f"⚠️ {model_name} unavailable."
+                    )
+
+                    print(
+                        f"⏳ Retrying in {wait_time}s..."
+                    )
+
+                    time.sleep(wait_time)
+
+                    continue
+
+                if (
+                    "401" in error_text
+                    or "UNAUTHENTICATED" in error_text
+                ):
+
+                    raise
 
                 raise
 
-            # Other error
-            print(
-                f"❌ Gemini request failed: "
-                f"{type(e).__name__}: {e}"
-            )
-
-            raise
+        print(
+            f"⚠️ Switching from {model_name} "
+            f"to fallback model..."
+        )
 
     raise RuntimeError(
-        "Gemini is currently unavailable after multiple retries."
+        f"All Gemini models failed. Last error: {last_error}"
     )
 
 
