@@ -3,14 +3,19 @@ import customtkinter as ctk
 
 class FloatingRecorder(ctk.CTkToplevel):
 
-    def __init__(self, parent, stop_callback):
-
+    def __init__(
+        self,
+        parent,
+        start_callback=None,
+        stop_callback=None
+    ):
         super().__init__(parent)
 
         # ==================================================
-        # CALLBACK
+        # CALLBACKS
         # ==================================================
 
+        self.start_callback = start_callback
         self.stop_callback = stop_callback
 
         # ==================================================
@@ -28,15 +33,12 @@ class FloatingRecorder(ctk.CTkToplevel):
         self.normal_width = 190
         self.normal_height = 135
 
-        # Small floating icon.
         self.mini_width = 64
         self.mini_height = 50
 
-        # Compact horizontal control bar.
         self.bar_width = 250
         self.bar_height = 50
 
-        # Arrow dimensions.
         self.arrow_width = 22
         self.arrow_height = 32
 
@@ -102,7 +104,9 @@ class FloatingRecorder(ctk.CTkToplevel):
             side="left"
         )
 
-        # ---------------- MINIMIZE ----------------
+        # --------------------------------------------------
+        # MINIMIZE BUTTON
+        # --------------------------------------------------
 
         self.minimize_btn = ctk.CTkButton(
             self.header,
@@ -170,10 +174,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         # ==================================================
-        # MINIMIZED UI
-        #
-        # Everything is INSIDE mini_frame.
-        # This prevents the blank-box/clipping problem.
+        # MINIMIZED FRAME
         # ==================================================
 
         self.mini_frame = ctk.CTkFrame(
@@ -187,7 +188,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         self.mini_frame.pack_propagate(False)
 
         # ==================================================
-        # BRAIN ICON
+        # MINI BRAIN
         # ==================================================
 
         self.mini_brain = ctk.CTkLabel(
@@ -199,12 +200,12 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         self.mini_brain.place(
-            x=6,
+            x=5,
             y=8
         )
 
         # ==================================================
-        # SMALL GREEN RECORDING LIGHT
+        # SMALL RECORDING LIGHT
         # ==================================================
 
         self.glow = ctk.CTkFrame(
@@ -221,13 +222,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         # ==================================================
-        # SIDE ARROW
-        #
-        # IMPORTANT:
-        # Arrow is INSIDE mini_frame.
-        #
-        # This is the main fix for the blank/clipped
-        # minimized recorder.
+        # MINI SIDE ARROW
         # ==================================================
 
         self.arrow_button = ctk.CTkButton(
@@ -249,7 +244,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         # ==================================================
-        # COMPACT SIDE CONTROL BAR
+        # CONTROL BAR
         # ==================================================
 
         self.control_bar = ctk.CTkFrame(
@@ -272,9 +267,9 @@ class FloatingRecorder(ctk.CTkToplevel):
             font=("Segoe UI Emoji", 17)
         )
 
-        self.bar_brain.pack(
-            side="left",
-            padx=(8, 3)
+        self.bar_brain.place(
+            x=8,
+            y=10
         )
 
         # ==================================================
@@ -294,9 +289,9 @@ class FloatingRecorder(ctk.CTkToplevel):
             command=self.stop
         )
 
-        self.bar_off.pack(
-            side="left",
-            padx=3
+        self.bar_off.place(
+            x=42,
+            y=9
         )
 
         # ==================================================
@@ -316,13 +311,13 @@ class FloatingRecorder(ctk.CTkToplevel):
             command=self.start_recording
         )
 
-        self.bar_on.pack(
-            side="left",
-            padx=3
+        self.bar_on.place(
+            x=80,
+            y=9
         )
 
         # ==================================================
-        # MAXIMIZE
+        # MAXIMIZE BUTTON
         # ==================================================
 
         self.maximize_btn = ctk.CTkButton(
@@ -338,13 +333,13 @@ class FloatingRecorder(ctk.CTkToplevel):
             command=self.restore
         )
 
-        self.maximize_btn.pack(
-            side="left",
-            padx=3
+        self.maximize_btn.place(
+            x=118,
+            y=9
         )
 
         # ==================================================
-        # CLOSE FLOATING RECORDER
+        # CLOSE BUTTON
         # ==================================================
 
         self.close_btn = ctk.CTkButton(
@@ -360,16 +355,19 @@ class FloatingRecorder(ctk.CTkToplevel):
             command=self.close_floating
         )
 
-        self.close_btn.pack(
-            side="left",
-            padx=3
+        self.close_btn.place(
+            x=156,
+            y=9
         )
 
         # ==================================================
-        # RIGHT-SIDE CLOSE ARROW
+        # RIGHT SIDE CLOSE ARROW
         #
-        # This arrow belongs to the control bar itself.
-        # It NEVER moves when hovered.
+        # IMPORTANT:
+        # This uses place(), NOT pack().
+        #
+        # Therefore hovering over it cannot change its
+        # position.
         # ==================================================
 
         self.bar_arrow = ctk.CTkButton(
@@ -386,7 +384,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         )
 
         self.bar_arrow.place(
-            x=self.bar_width - self.arrow_width - 2,
+            x=self.bar_width - self.arrow_width - 3,
             y=9
         )
 
@@ -452,7 +450,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         # Hide normal UI.
         self.container.pack_forget()
 
-        # Hide side bar.
+        # Hide control bar.
         self.control_bar.place_forget()
 
         # Resize window.
@@ -460,15 +458,12 @@ class FloatingRecorder(ctk.CTkToplevel):
             f"{self.mini_width}x{self.mini_height}+{x}+{y}"
         )
 
-        # Show mini UI.
+        # Show mini frame.
         self.mini_frame.place(
             x=0,
             y=0
         )
 
-        self.mini_frame.lift()
-
-        # Always show brain + arrow.
         self.position_mini_elements()
 
         self.update_recording_visuals()
@@ -479,24 +474,23 @@ class FloatingRecorder(ctk.CTkToplevel):
 
     def position_mini_elements(self):
 
-        # Brain.
         self.mini_brain.place(
-            x=6,
+            x=5,
             y=8
         )
 
-        # Small recording light.
         self.glow.place(
             x=7,
             y=7
         )
 
-        # Arrow.
         self.arrow_button.place(
             x=self.mini_width - self.arrow_width - 3,
             y=9
         )
 
+        self.mini_brain.lift()
+        self.glow.lift()
         self.arrow_button.lift()
 
     # ==================================================
@@ -518,25 +512,20 @@ class FloatingRecorder(ctk.CTkToplevel):
         x = self.winfo_x()
         y = self.winfo_y()
 
-        # Resize Toplevel.
         self.geometry(
             f"{self.bar_width}x{self.bar_height}+{x}+{y}"
         )
 
-        # Hide mini UI.
         self.mini_frame.place_forget()
 
-        # Show compact bar.
         self.control_bar.place(
             x=0,
             y=0
         )
 
-        self.control_bar.lift()
-
-        # Reposition close arrow.
+        # Keep right arrow fixed.
         self.bar_arrow.place(
-            x=self.bar_width - self.arrow_width - 2,
+            x=self.bar_width - self.arrow_width - 3,
             y=9
         )
 
@@ -560,25 +549,15 @@ class FloatingRecorder(ctk.CTkToplevel):
         x = self.winfo_x()
         y = self.winfo_y()
 
-        # Return to mini size.
         self.geometry(
             f"{self.mini_width}x{self.mini_height}+{x}+{y}"
         )
 
-        # Hide control bar.
         self.control_bar.place_forget()
 
-        # Show mini UI again.
         self.mini_frame.place(
             x=0,
             y=0
-        )
-
-        self.mini_frame.lift()
-
-        # Make sure arrow is correct.
-        self.arrow_button.configure(
-            text="›"
         )
 
         self.position_mini_elements()
@@ -616,18 +595,13 @@ class FloatingRecorder(ctk.CTkToplevel):
         self.is_minimized = False
         self.bar_open = False
 
-        # Hide mini UI.
         self.mini_frame.place_forget()
-
-        # Hide side bar.
         self.control_bar.place_forget()
 
-        # Restore normal size.
         self.geometry(
             f"{self.normal_width}x{self.normal_height}+{x}+{y}"
         )
 
-        # Restore normal UI.
         self.container.pack(
             fill="both",
             expand=True,
@@ -644,10 +618,8 @@ class FloatingRecorder(ctk.CTkToplevel):
     def update_recording_visuals(self):
 
         try:
-
             if not self.winfo_exists():
                 return
-
         except Exception:
             return
 
@@ -684,7 +656,6 @@ class FloatingRecorder(ctk.CTkToplevel):
                     text_color="#6F8F7A"
                 )
 
-                # Green light ON.
                 self.glow.configure(
                     fg_color="#00FF66"
                 )
@@ -720,7 +691,6 @@ class FloatingRecorder(ctk.CTkToplevel):
                     text_color="white"
                 )
 
-                # Green light OFF/faded.
                 self.glow.configure(
                     fg_color="#333333"
                 )
@@ -742,21 +712,30 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         print("🟢 FloatingRecorder ON clicked")
 
-        # Tell Dashboard/MemoryRecorder to start.
-        try:
+        # Tell parent to START recording.
+        if self.start_callback:
 
-            self.stop_callback()
+            try:
+                self.start_callback()
 
-        except Exception as e:
+            except Exception as e:
 
-            print(
-                f"⚠️ Start callback failed: {e}"
-            )
+                print(
+                    f"⚠️ Start callback failed: {e}"
+                )
 
-        # The dashboard callback should start the recorder.
+        # IMPORTANT:
+        # Do NOT recreate the floating recorder.
+        # Do NOT destroy it.
+        # Just change its state.
+
         self.recording = True
 
         self.update_recording_visuals()
+
+        print(
+            "▶ Recording started — FloatingRecorder remains visible"
+        )
 
     # ==================================================
     # STOP RECORDING
@@ -769,31 +748,30 @@ class FloatingRecorder(ctk.CTkToplevel):
 
         print("🔴 FloatingRecorder OFF clicked")
 
-        # --------------------------------------------------
         # IMPORTANT:
+        # ONLY turn recording OFF.
         #
-        # ONLY stop recording.
-        #
-        # DO NOT:
+        # NEVER call:
         # self.destroy()
-        # self.withdraw()
-        # destroy mini_frame
-        # destroy control_bar
         #
-        # The floating recorder must remain visible.
-        # --------------------------------------------------
+        # NEVER call:
+        # self.withdraw()
+        #
+        # NEVER remove the FloatingRecorder.
 
         self.recording = False
 
-        try:
+        # Tell parent to STOP memory recording.
+        if self.stop_callback:
 
-            self.stop_callback()
+            try:
+                self.stop_callback()
 
-        except Exception as e:
+            except Exception as e:
 
-            print(
-                f"⚠️ Stop callback failed: {e}"
-            )
+                print(
+                    f"⚠️ Stop callback failed: {e}"
+                )
 
         self.update_recording_visuals()
 
@@ -829,9 +807,7 @@ class FloatingRecorder(ctk.CTkToplevel):
         print("✕ Closing FloatingRecorder")
 
         try:
-
             self.destroy()
-
         except Exception:
             pass
 
@@ -873,18 +849,24 @@ class FloatingRecorder(ctk.CTkToplevel):
 
     def destroy(self):
 
-        try:
+        print("✕ Destroying FloatingRecorder")
 
+        try:
             self.control_bar.place_forget()
-
         except Exception:
             pass
 
         try:
-
             self.mini_frame.place_forget()
-
         except Exception:
             pass
 
-        super().destroy()
+        try:
+            self.container.pack_forget()
+        except Exception:
+            pass
+
+        try:
+            super().destroy()
+        except Exception:
+            pass
