@@ -1,18 +1,26 @@
 import customtkinter as ctk
-from session import save_session
-from database.auth import create_user, login_user
+
+from session import (
+    save_session,
+    create_trusted_device
+)
+
+from database.auth import (
+    create_user,
+    login_user
+)
 
 
 class AuthPage(ctk.CTkFrame):
 
     def __init__(self, parent, on_login):
+
         super().__init__(
             parent,
             fg_color="#0B1220"
         )
 
         self.on_login = on_login
-        
 
         self.build_ui()
 
@@ -131,7 +139,8 @@ class AuthPage(ctk.CTkFrame):
         if not username or not email or not password:
 
             self.message_label.configure(
-                text="Please fill in all fields."
+                text="Please fill in all fields.",
+                text_color="#FF6B6B"
             )
 
             return
@@ -145,7 +154,8 @@ class AuthPage(ctk.CTkFrame):
         if not success:
 
             self.message_label.configure(
-                text="An account with this email or username already exists."
+                text="An account with this email or username already exists.",
+                text_color="#FF6B6B"
             )
 
             return
@@ -163,7 +173,8 @@ class AuthPage(ctk.CTkFrame):
         if not email or not password:
 
             self.message_label.configure(
-                text="Enter your email and password."
+                text="Enter your email and password.",
+                text_color="#FF6B6B"
             )
 
             return
@@ -176,9 +187,26 @@ class AuthPage(ctk.CTkFrame):
         if user is None:
 
             self.message_label.configure(
-                text="Invalid email or password."
+                text="Invalid email or password.",
+                text_color="#FF6B6B"
             )
 
             return
+
+        # ---------------------------------------------
+        # NORMAL LOGIN SUCCESS
+        # ---------------------------------------------
+
         save_session(user)
+
+        # Remember this device.
+        create_trusted_device(
+            user["id"]
+        )
+
+        self.message_label.configure(
+            text="Login successful!",
+            text_color="#4ADE80"
+        )
+
         self.on_login(user)
