@@ -154,17 +154,25 @@ class Dashboard(ctk.CTkFrame):
     def start_memory_recording(self):
         print("🟢 STARTING MEMORY RECORDING")
 
-        # Prevent duplicate recorder threads.
+        # If this session is already running, do nothing.
         if self.recorder.running:
             print("🟢 Memory recorder is already running")
             self.sync_floating_state(True)
             return True
 
-        if self.recorder_thread is not None and self.recorder_thread.is_alive():
-            print("⚠️ Recorder thread is still alive; refusing duplicate start")
-            return False
-
         self.recording_session = True
+
+        # IMPORTANT:
+        # Create a fresh MemoryRecorder for every new recording session.
+        #
+        # The previous recorder thread may still be finishing its final
+        # sleep/OCR operation after stop(). Reusing that stopped object can
+        # make an immediate ON click fail. A fresh recorder gives the new
+        # session its own clean running flag.
+        self.recorder = MemoryRecorder(
+            user_id=self.user_id,
+            callback=self.on_memory_saved
+        )
 
         self.recorder_thread = threading.Thread(
             target=self.recorder.start,
@@ -172,10 +180,13 @@ class Dashboard(ctk.CTkFrame):
         )
         self.recorder_thread.start()
 
+        # Keep the existing floating recorder if it is still open.
         self.create_floating_recorder()
 
         self.start_btn.configure(text="🟢 Recording...")
         self.status_label.configure(text="🟢 Recording")
+
+        self.sync_floating_state(True)
 
         print("🧠 Floating recorder started")
         return True
@@ -183,14 +194,21 @@ class Dashboard(ctk.CTkFrame):
     def stop_memory_recording(self):
         print("🔴 STOPPING MEMORY RECORDING")
 
+        if not self.recorder.running:
+            print("🔴 Memory recorder is already stopped")
+            self.recording_session = False
+            self.sync_floating_state(False)
+            self.start_btn.configure(text="▶ Start Memory")
+            self.status_label.configure(text="🔴 Idle")
+            return True
+
         self.recording_session = False
 
-        # This stops the REAL MemoryRecorder.
+        # Stop the CURRENT recorder session.
+        # The session object will be replaced on the next START.
         self.recorder.stop()
 
-        # IMPORTANT:
-        # Do NOT destroy the floating recorder.
-        # It must remain visible and show OFF.
+        # Keep the floating recorder alive and synchronize its UI.
         self.sync_floating_state(False)
 
         self.start_btn.configure(text="▶ Start Memory")
