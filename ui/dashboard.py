@@ -8,7 +8,7 @@ from ui.chat_panel import ChatPanel
 class Dashboard(ctk.CTkFrame):
 
     def __init__(self, parent, user_id, username):
-        super().__init__(parent, fg_color="#101826")
+        super().__init__(parent, fg_color="#05080F")
 
         self.user_id = user_id
         self.username = username
@@ -25,121 +25,236 @@ class Dashboard(ctk.CTkFrame):
         self.build_ui()
 
     def build_ui(self):
+        # ---------- HEADER ----------
         header = ctk.CTkFrame(self, fg_color="transparent")
-        header.pack(fill="x", padx=20, pady=(20, 10))
+        header.pack(fill="x", padx=42, pady=(30, 8))
 
         title = ctk.CTkLabel(
-            header, text="Welcome Back 👋",
-            font=("Segoe UI", 30, "bold"), text_color="white"
+            header,
+            text=f"Welcome back, {self.username}",
+            font=("Segoe UI", 30, "bold"),
+            text_color="#F4F7FB"
         )
         title.pack(anchor="w")
 
         subtitle = ctk.CTkLabel(
-            header, text="Your Digital Memory is Ready",
-            font=("Segoe UI", 15), text_color="#F2F6FF"
+            header,
+            text="Your digital memory is ready.",
+            font=("Segoe UI", 14),
+            text_color="#7F91A8"
         )
-        subtitle.pack(anchor="w")
+        subtitle.pack(anchor="w", pady=(3, 0))
 
+        # ---------- MAIN CANVAS ----------
         content = ctk.CTkFrame(self, fg_color="transparent")
-        content.pack(fill="both", expand=True, padx=20, pady=10)
+        content.pack(fill="both", expand=True, padx=42, pady=(12, 28))
 
+        # LEFT: lightweight information rail
         self.left_panel = ctk.CTkScrollableFrame(
-            content, width=380, corner_radius=15, fg_color="#1E293B"
+            content,
+            width=300,
+            fg_color="transparent",
+            corner_radius=0,
+            scrollbar_button_color="#182332",
+            scrollbar_button_hover_color="#26374B"
         )
-        self.left_panel.pack(side="left", fill="y", padx=(0, 15))
-        self.left_panel.configure(width=380, height=650)
+        self.left_panel.pack(
+            side="left",
+            fill="y",
+            padx=(0, 42)
+        )
 
-        self.right_panel = ctk.CTkFrame(content, corner_radius=15)
-        self.right_panel.pack(side="left", fill="both", expand=True)
+        # RIGHT: completely flat JARVIS workspace
+        self.right_panel = ctk.CTkFrame(
+            content,
+            fg_color="transparent",
+            corner_radius=0
+        )
+        self.right_panel.pack(
+            side="left",
+            fill="both",
+            expand=True
+        )
 
-        stats = ctk.CTkFrame(self.left_panel, fg_color="transparent")
-        stats.pack(fill="x", padx=15, pady=15)
+        # ---------- LEFT RAIL ----------
+        section = ctk.CTkLabel(
+            self.left_panel,
+            text="MEMORY",
+            font=("Segoe UI", 11, "bold"),
+            text_color="#5F738C"
+        )
+        section.pack(anchor="w", padx=2, pady=(5, 10))
 
-        self.create_card(stats, "🧠 Memory", "Idle", 0)
-        self.create_card(stats, "📸 Screens", "0", 1)
-        self.create_card(stats, "💬 AI", "0", 2)
-        self.create_card(stats, "⏱ Runtime", "00:00", 3)
+        self.create_stat_row("Memory", "Idle")
+        self.create_stat_row("Screens", "0")
+        self.create_stat_row("AI", "0")
+        self.create_stat_row("Runtime", "00:00")
 
-        controls = ctk.CTkFrame(self.left_panel)
-        controls.pack(fill="x", padx=15, pady=10)
+        ctk.CTkFrame(
+            self.left_panel,
+            height=1,
+            fg_color="#17212E"
+        ).pack(fill="x", pady=(20, 18))
 
         self.start_btn = ctk.CTkButton(
-            controls,
-            text="▶ Start Memory",
-            height=42,
+            self.left_panel,
+            text="▶  Start Memory",
+            height=40,
+            corner_radius=10,
             command=self.toggle_memory,
-            fg_color="#00CFFF",
-            hover_color="#00A6FF",
-            text_color="white"
+            fg_color="#101A27",
+            hover_color="#172536",
+            border_width=1,
+            border_color="#243449",
+            text_color="#DCE8F5"
         )
-        self.start_btn.pack(fill="x", padx=12, pady=(12, 8))
-
-        status = ctk.CTkFrame(self.left_panel)
-        status.pack(fill="x", padx=15, pady=10)
+        self.start_btn.pack(fill="x", pady=(0, 20))
 
         status_title = ctk.CTkLabel(
-            status, text="🟢 Live Status",
-            font=("Segoe UI", 18, "bold"), text_color="#9DB1C7"
+            self.left_panel,
+            text="LIVE STATUS",
+            font=("Segoe UI", 11, "bold"),
+            text_color="#5F738C"
         )
-        status_title.pack(anchor="w", padx=15, pady=(12, 8))
+        status_title.pack(anchor="w", padx=2, pady=(0, 10))
 
-        self.status_label = ctk.CTkLabel(status, text="🔴 Idle")
-        self.status_label.pack(anchor="w", padx=15)
-
-        self.current_app = ctk.CTkLabel(status, text="Current App : -")
-        self.current_app.pack(anchor="w", padx=15)
-
-        self.current_window = ctk.CTkLabel(status, text="Current Window : -")
-        self.current_window.pack(anchor="w", padx=15)
-
-        self.last_updated = ctk.CTkLabel(status, text="Updated : -")
-        self.last_updated.pack(anchor="w", padx=15, pady=(0, 12))
-
-        timeline = ctk.CTkFrame(self.left_panel)
-        timeline.pack(fill="x", padx=15, pady=(10, 10))
-        timeline.configure(height=250)
-
-        lbl = ctk.CTkLabel(
-            timeline, text="📜 Recent Activity",
-            font=("Segoe UI", 18, "bold")
+        self.status_label = ctk.CTkLabel(
+            self.left_panel,
+            text="🔴 Idle",
+            font=("Segoe UI", 13, "bold"),
+            text_color="#A9B7C7"
         )
-        lbl.pack(anchor="w", padx=15, pady=(12, 8))
+        self.status_label.pack(anchor="w", padx=2, pady=(0, 8))
 
-        self.timeline = ctk.CTkTextbox(timeline, height=170)
-        self.timeline.pack(fill="x", padx=10, pady=10)
+        self.current_app = ctk.CTkLabel(
+            self.left_panel,
+            text="Current App : -",
+            font=("Segoe UI", 12),
+            text_color="#7F91A8",
+            wraplength=280,
+            justify="left"
+        )
+        self.current_app.pack(anchor="w", padx=2, pady=2)
+
+        self.current_window = ctk.CTkLabel(
+            self.left_panel,
+            text="Current Window : -",
+            font=("Segoe UI", 12),
+            text_color="#7F91A8",
+            wraplength=280,
+            justify="left"
+        )
+        self.current_window.pack(anchor="w", padx=2, pady=2)
+
+        self.last_updated = ctk.CTkLabel(
+            self.left_panel,
+            text="Updated : -",
+            font=("Segoe UI", 12),
+            text_color="#7F91A8"
+        )
+        self.last_updated.pack(anchor="w", padx=2, pady=2)
+
+        ctk.CTkFrame(
+            self.left_panel,
+            height=1,
+            fg_color="#17212E"
+        ).pack(fill="x", pady=(22, 18))
+
+        activity_title = ctk.CTkLabel(
+            self.left_panel,
+            text="RECENT ACTIVITY",
+            font=("Segoe UI", 11, "bold"),
+            text_color="#5F738C"
+        )
+        activity_title.pack(anchor="w", padx=2, pady=(0, 10))
+
+        self.timeline = ctk.CTkTextbox(
+            self.left_panel,
+            height=230,
+            fg_color="transparent",
+            border_width=0,
+            corner_radius=0,
+            text_color="#8294A9",
+            font=("Segoe UI", 11),
+            wrap="word"
+        )
+        self.timeline.pack(fill="x", padx=0, pady=0)
         self.timeline.insert("end", "Waiting for activity...")
         self.timeline.configure(state="disabled")
 
-        jarvis_title = ctk.CTkLabel(
-            self.right_panel, text="🤖 JARVIS ",
-            font=("Segoe UI", 28, "bold")
+        # ---------- JARVIS ----------
+        jarvis_header = ctk.CTkFrame(
+            self.right_panel,
+            fg_color="transparent"
         )
-        jarvis_title.pack(anchor="w", padx=20, pady=(20, 5))
+        jarvis_header.pack(
+            fill="x",
+            pady=(8, 0)
+        )
+
+        # Floating-style icon
+        icon = ctk.CTkLabel(
+            jarvis_header,
+            text="✦",
+            font=("Segoe UI", 31, "bold"),
+            text_color="#5BD7FF"
+        )
+        icon.pack(side="left", padx=(0, 12))
+
+        heading_group = ctk.CTkFrame(
+            jarvis_header,
+            fg_color="transparent"
+        )
+        heading_group.pack(side="left")
+
+        jarvis_title = ctk.CTkLabel(
+            heading_group,
+            text="JARVIS",
+            font=("Segoe UI", 25, "bold"),
+            text_color="#F4F7FB"
+        )
+        jarvis_title.pack(anchor="w")
 
         jarvis_sub = ctk.CTkLabel(
-            self.right_panel,
-            text="Ask anything about your memories, current work or computer activity.",
-            font=("Segoe UI", 15)
+            heading_group,
+            text="Your memory-aware desktop intelligence",
+            font=("Segoe UI", 12),
+            text_color="#71849A"
         )
-        jarvis_sub.pack(anchor="w", padx=20, pady=(0, 15))
+        jarvis_sub.pack(anchor="w", pady=(1, 0))
+
+        ctk.CTkFrame(
+            self.right_panel,
+            height=1,
+            fg_color="#111B27"
+        ).pack(fill="x", pady=(20, 12))
 
         self.chat = ChatPanel(self.right_panel)
-        self.chat.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        self.chat.pack(fill="both", expand=True)
 
-    def create_card(self, parent, title, value, column):
-        card = ctk.CTkFrame(parent, width=155, height=90, corner_radius=12)
-        card.grid(row=column // 2, column=column % 2, padx=8, pady=8)
-        card.grid_propagate(False)
+    def create_stat_row(self, title, value):
+        row = ctk.CTkFrame(
+            self.left_panel,
+            fg_color="transparent",
+            height=30
+        )
+        row.pack(fill="x", pady=3)
 
         label = ctk.CTkLabel(
-            card, text=title, font=("Segoe UI", 14, "bold")
+            row,
+            text=title,
+            font=("Segoe UI", 12),
+            text_color="#71849A"
         )
-        label.pack(pady=(15, 5))
+        label.pack(side="left")
 
         value_label = ctk.CTkLabel(
-            card, text=value, font=("Segoe UI", 20)
+            row,
+            text=value,
+            font=("Segoe UI", 12, "bold"),
+            text_color="#C7D3E0"
         )
-        value_label.pack()
+        value_label.pack(side="right")
 
     # ---------------------------------------------------
     # START / STOP MEMORY
@@ -154,7 +269,6 @@ class Dashboard(ctk.CTkFrame):
     def start_memory_recording(self):
         print("🟢 STARTING MEMORY RECORDING")
 
-        # If this session is already running, do nothing.
         if self.recorder.running:
             print("🟢 Memory recorder is already running")
             self.sync_floating_state(True)
@@ -162,13 +276,6 @@ class Dashboard(ctk.CTkFrame):
 
         self.recording_session = True
 
-        # IMPORTANT:
-        # Create a fresh MemoryRecorder for every new recording session.
-        #
-        # The previous recorder thread may still be finishing its final
-        # sleep/OCR operation after stop(). Reusing that stopped object can
-        # make an immediate ON click fail. A fresh recorder gives the new
-        # session its own clean running flag.
         self.recorder = MemoryRecorder(
             user_id=self.user_id,
             callback=self.on_memory_saved
@@ -180,11 +287,13 @@ class Dashboard(ctk.CTkFrame):
         )
         self.recorder_thread.start()
 
-        # Keep the existing floating recorder if it is still open.
         self.create_floating_recorder()
 
-        self.start_btn.configure(text="🟢 Recording...")
-        self.status_label.configure(text="🟢 Recording")
+        self.start_btn.configure(text="🟢  Recording...")
+        self.status_label.configure(
+            text="🟢 Recording",
+            text_color="#6EE7A8"
+        )
 
         self.sync_floating_state(True)
 
@@ -198,21 +307,23 @@ class Dashboard(ctk.CTkFrame):
             print("🔴 Memory recorder is already stopped")
             self.recording_session = False
             self.sync_floating_state(False)
-            self.start_btn.configure(text="▶ Start Memory")
-            self.status_label.configure(text="🔴 Idle")
+            self.start_btn.configure(text="▶  Start Memory")
+            self.status_label.configure(
+                text="🔴 Idle",
+                text_color="#A9B7C7"
+            )
             return True
 
         self.recording_session = False
-
-        # Stop the CURRENT recorder session.
-        # The session object will be replaced on the next START.
         self.recorder.stop()
 
-        # Keep the floating recorder alive and synchronize its UI.
         self.sync_floating_state(False)
 
-        self.start_btn.configure(text="▶ Start Memory")
-        self.status_label.configure(text="🔴 Idle")
+        self.start_btn.configure(text="▶  Start Memory")
+        self.status_label.configure(
+            text="🔴 Idle",
+            text_color="#A9B7C7"
+        )
         self.current_app.configure(text="Current App : -")
         self.current_window.configure(text="Current Window : -")
         self.last_updated.configure(text="Updated : -")
@@ -250,7 +361,6 @@ class Dashboard(ctk.CTkFrame):
 
             self.floating.bind("<Destroy>", self.on_floating_destroyed)
 
-            # The actual recorder state is authoritative.
             self.sync_floating_state(self.recorder.running)
 
             print("✅ FloatingRecorder CREATED")
@@ -305,17 +415,23 @@ class Dashboard(ctk.CTkFrame):
 
         self.after(
             0,
-            lambda: self.current_app.configure(text=f"Current App : {app}")
+            lambda: self.current_app.configure(
+                text=f"Current App : {app}"
+            )
         )
 
         self.after(
             0,
-            lambda: self.current_window.configure(text=f"Current Window : {title}")
+            lambda: self.current_window.configure(
+                text=f"Current Window : {title}"
+            )
         )
 
         self.after(
             0,
-            lambda: self.last_updated.configure(text=f"Updated : {timestamp}")
+            lambda: self.last_updated.configure(
+                text=f"Updated : {timestamp}"
+            )
         )
 
         self.after(0, self.add_activity, app, title, timestamp)
