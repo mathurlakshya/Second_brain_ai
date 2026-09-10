@@ -44,6 +44,7 @@ class ChatPanel(ctk.CTkFrame):
         self.thinking = False
         self.thinking_step = 0
         self.typing_after_id = None
+        self.thinking_prefix = ""
 
         self.build_ui()
 
@@ -124,9 +125,10 @@ or anything happening on your computer.
         self.chat_box.configure(state="normal")
         self.chat_box.insert("end", f"\n\nYOU\n{question}\n\n")
 
-        # A named Tk text mark lets us remove only the thinking indicator
-        # when the real response arrives, without rebuilding the whole chat.
-        self.chat_box.mark_set("thinking_start", "end-1c")
+        # Save everything before the thinking indicator. During the animation
+        # we redraw this same content and replace only the single indicator line.
+        # This guarantees that the thinking message never gets duplicated.
+        self.thinking_prefix = self.chat_box.get("1.0", "end-1c")
         self.chat_box.insert("end", "✦ JARVIS is thinking")
         self.chat_box.see("end")
         self.chat_box.configure(state="disabled")
@@ -146,25 +148,26 @@ or anything happening on your computer.
         ).start()
 
     def animate_thinking(self):
-        """Animate a subtle floating/dots effect while Gemini is working."""
+        """Keep one thinking line in place and subtly animate only its icon."""
         if not self.thinking:
             return
 
-        dots = "." * ((self.thinking_step % 3) + 1)
-        pulse = ("✦", "✧", "✦", "✧")[self.thinking_step % 4]
-        text = f"{pulse} JARVIS is thinking{dots}"
+        # The text stays exactly in the same place. Only the small sparkle
+        # changes between two glyphs, creating a gentle wave/pulse effect.
+        pulse = ("✦", "✧")[self.thinking_step % 2]
+        text = f"{pulse} JARVIS is thinking"
 
         try:
             self.chat_box.configure(state="normal")
-            self.chat_box.delete("thinking_start", "end")
-            self.chat_box.insert("end", text)
+            self.chat_box.delete("1.0", "end")
+            self.chat_box.insert("1.0", self.thinking_prefix + text)
             self.chat_box.see("end")
             self.chat_box.configure(state="disabled")
         except Exception:
             return
 
         self.thinking_step += 1
-        self.after(280, self.animate_thinking)
+        self.after(420, self.animate_thinking)
 
     def get_answer(self, question):
         try:
@@ -181,7 +184,7 @@ or anything happening on your computer.
         self.after(0, self.show_answer, answer)
 
     def show_answer(self, answer):
-        """Replace the thinking indicator and reveal the response progressively."""
+        """Replace the single thinking indicator and reveal the response progressively."""
         self.thinking = False
 
         if self.typing_after_id is not None:
@@ -192,7 +195,8 @@ or anything happening on your computer.
             self.typing_after_id = None
 
         self.chat_box.configure(state="normal")
-        self.chat_box.delete("thinking_start", "end")
+        self.chat_box.delete("1.0", "end")
+        self.chat_box.insert("1.0", self.thinking_prefix)
         self.chat_box.insert("end", "✦ JARVIS\n")
         self.chat_box.configure(state="disabled")
 
