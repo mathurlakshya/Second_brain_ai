@@ -38,6 +38,14 @@ class MemoryPage(ctk.CTkFrame):
         self.memory_box = ctk.CTkTextbox(body, fg_color="transparent", border_width=0, corner_radius=14, text_color=TEXT_SOFT, font=("Segoe UI", 12), wrap="word", scrollbar_button_color=BORDER, scrollbar_button_hover_color=ACCENT_HOVER)
         self.memory_box.pack(fill="both", expand=True, padx=22, pady=20)
 
+    @staticmethod
+    def _tag_color(color):
+        """CTkTextbox tag_config requires one concrete color, not a light/dark tuple."""
+        if isinstance(color, (tuple, list)):
+            # CustomTkinter color tuples are (light_color, dark_color).
+            return color[0] if ctk.get_appearance_mode().lower() == "light" else color[1]
+        return color
+
     def load_memories(self):
         self.memory_box.configure(state="normal")
         self.memory_box.delete("1.0", "end")
@@ -72,10 +80,9 @@ class MemoryPage(ctk.CTkFrame):
             self.memory_box.insert("end", f"{app}\n", ("app",))
             self.memory_box.insert("end", f"{title}\n", ("title",))
 
-        # CustomTkinter CTkTextbox intentionally forbids a per-tag font because
-        # tag fonts bypass CustomTkinter's scaling system. Keep the global font
-        # and use tags only for colors.
-        self.memory_box.tag_config("time", foreground=TEXT_DIM)
-        self.memory_box.tag_config("app", foreground=ACCENT)
-        self.memory_box.tag_config("title", foreground=TEXT_BRIGHT)
+        # CTkTextbox tag_config is backed by Tkinter and requires a single
+        # concrete color. CustomTkinter light/dark tuples must be resolved first.
+        self.memory_box.tag_config("time", foreground=self._tag_color(TEXT_DIM))
+        self.memory_box.tag_config("app", foreground=self._tag_color(ACCENT))
+        self.memory_box.tag_config("title", foreground=self._tag_color(TEXT_BRIGHT))
         self.memory_box.configure(state="disabled")
