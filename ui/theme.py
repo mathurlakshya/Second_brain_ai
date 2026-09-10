@@ -61,7 +61,7 @@ def _theme_color(value):
 
 
 def refresh_theme(root):
-    """Apply the light/dark palette to existing widgets immediately."""
+    """Apply the high-contrast light/dark palette to existing widgets."""
     light_mode = ctk.get_appearance_mode().lower() == "light"
 
     def walk(widget):
@@ -95,74 +95,63 @@ def refresh_theme(root):
             # black text, and black controls/scrollbars.
             if light_mode:
                 if isinstance(widget, ctk.CTkButton):
-                    try:
-                        widget.configure(
-                            fg_color="#000000",
-                            hover_color="#222222",
-                            text_color="#FFFFFF",
-                        )
-                    except Exception:
-                        pass
+                    widget.configure(
+                        fg_color=("#000000", "#101A27"),
+                        hover_color=("#222222", "#17212E"),
+                        text_color=("#FFFFFF", "#DCE8F5"),
+                    )
 
                 elif isinstance(widget, ctk.CTkOptionMenu):
-                    try:
-                        widget.configure(
-                            fg_color="#000000",
-                            button_color="#000000",
-                            button_hover_color="#222222",
-                            text_color="#FFFFFF",
-                            dropdown_fg_color="#FFFFFF",
-                            dropdown_hover_color="#EEEEEE",
-                            dropdown_text_color="#000000",
-                        )
-                    except Exception:
-                        pass
+                    widget.configure(
+                        fg_color=("#000000", "#101A27"),
+                        button_color=("#000000", "#101A27"),
+                        button_hover_color=("#222222", "#17212E"),
+                        text_color=("#FFFFFF", "#DCE8F5"),
+                        dropdown_fg_color=("#FFFFFF", "#101A27"),
+                        dropdown_hover_color=("#EEEEEE", "#17212E"),
+                        dropdown_text_color=("#000000", "#DCE8F5"),
+                    )
 
                 elif isinstance(widget, ctk.CTkScrollbar):
-                    try:
-                        widget.configure(
-                            fg_color="#FFFFFF",
-                            button_color="#000000",
-                            button_hover_color="#333333",
-                        )
-                    except Exception:
-                        pass
+                    widget.configure(
+                        fg_color=("#FFFFFF", "transparent"),
+                        button_color=("#000000", "#5F738C"),
+                        button_hover_color=("#333333", "#71849A"),
+                    )
 
                 elif isinstance(widget, ctk.CTkSwitch):
-                    try:
-                        widget.configure(
-                            text_color="#000000",
-                            progress_color="#000000",
-                            button_color="#FFFFFF",
-                            button_hover_color="#DDDDDD",
-                        )
-                    except Exception:
-                        pass
+                    widget.configure(
+                        text_color=("#000000", "#DCE8F5"),
+                        progress_color=("#000000", "#5BD7FF"),
+                        button_color=("#FFFFFF", "#DCE8F5"),
+                        button_hover_color=("#DDDDDD", "#FFFFFF"),
+                    )
 
                 elif isinstance(widget, ctk.CTkEntry):
-                    try:
-                        widget.configure(
-                            text_color="#000000",
-                            placeholder_text_color="#000000",
-                        )
-                    except Exception:
-                        pass
+                    widget.configure(
+                        text_color=("#000000", "#EDF4FB"),
+                        placeholder_text_color=("#000000", "#61758B"),
+                    )
 
                 elif isinstance(widget, ctk.CTkTextbox):
+                    widget.configure(
+                        text_color=("#000000", "#D6E0EB"),
+                        scrollbar_button_color=("#000000", "#5F738C"),
+                        scrollbar_button_hover_color=("#333333", "#71849A"),
+                    )
+
+                elif isinstance(widget, ctk.CTkScrollableFrame):
                     try:
                         widget.configure(
-                            text_color="#000000",
-                            scrollbar_button_color="#000000",
-                            scrollbar_button_hover_color="#333333",
+                            scrollbar_fg_color=("#FFFFFF", "transparent"),
+                            scrollbar_button_color=("#000000", "#5F738C"),
+                            scrollbar_button_hover_color=("#333333", "#71849A"),
                         )
                     except Exception:
                         pass
 
                 elif isinstance(widget, ctk.CTkLabel):
-                    try:
-                        widget.configure(text_color="#000000")
-                    except Exception:
-                        pass
+                    widget.configure(text_color=TEXT)
 
         except Exception:
             pass
