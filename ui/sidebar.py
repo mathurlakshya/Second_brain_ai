@@ -19,7 +19,6 @@ class Sidebar(ctk.CTkFrame):
         self.username = username
         self.change_page = change_page
         self.account_menu = None
-
         self.grid_propagate(False)
 
         title = ctk.CTkLabel(
@@ -32,12 +31,12 @@ class Sidebar(ctk.CTkFrame):
 
         self.create_button("🏠 Dashboard", "dashboard")
         self.create_button("🧠 Memory", "memory")
+        self.create_button("✦ Thought Threads", "thought_threads")
         self.create_button("👁 Live Context", "live_context")
         self.create_button("🔍 Search", "search")
         self.create_button("📜 Analytics", "analytics")
         self.create_button("⚙️ Settings", "settings")
 
-        # Keep the account control at the bottom-left of the sidebar.
         spacer = ctk.CTkFrame(self, fg_color="transparent")
         spacer.pack(expand=True, fill="both")
 
@@ -84,14 +83,9 @@ class Sidebar(ctk.CTkFrame):
             hover_color=TEXT_MUTED,
             text_color=SURFACE
         )
-        btn.pack(
-            fill="x",
-            padx=15,
-            pady=6
-        )
+        btn.pack(fill="x", padx=15, pady=6)
 
     def show_account_menu(self):
-        # Toggle the account dropdown.
         if self.account_menu is not None:
             try:
                 if self.account_menu.winfo_exists():
@@ -120,7 +114,6 @@ class Sidebar(ctk.CTkFrame):
         )
         logout_button.pack(fill="x", padx=15, pady=15)
 
-        # Position the menu directly above the account button.
         self.account_menu.update_idletasks()
         x = self.account_button.winfo_rootx()
         y = self.account_button.winfo_rooty() - self.account_menu.winfo_height() - 8
@@ -137,7 +130,5 @@ class Sidebar(ctk.CTkFrame):
             self.account_menu = None
 
     def logout(self):
-        # The parent Application.logout() clears the active session and
-        # trusted-device token, destroys the app window, and shows AuthPage.
         self.close_account_menu()
         self.master.master.logout()
