@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from database.database import get_user_setting, set_user_setting
-from ui.theme import BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER, ACCENT, TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT, refresh_theme
+from ui.theme import BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER, ACCENT, ACCENT_HOVER, TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT, refresh_theme
 
 
 class SettingsPage(ctk.CTkFrame):
