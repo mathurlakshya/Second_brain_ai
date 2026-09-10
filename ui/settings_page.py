@@ -1,109 +1,53 @@
 import customtkinter as ctk
-from database.database import (
-    get_user_setting,
-    set_user_setting
-)
+from database.database import get_user_setting, set_user_setting
+from ui.theme import BG, SURFACE, SURFACE_ALT, BORDER_HOVER, TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT
+
 
 class SettingsPage(ctk.CTkFrame):
 
     def __init__(self, parent, user_id):
-
-        super().__init__(
-            parent,
-            fg_color="#111827"
-        )
-
+        super().__init__(parent, fg_color=BG)
         self.user_id = user_id
-        
+        self.build_ui()
+
+    def build_ui(self):
+        header = ctk.CTkFrame(self, fg_color="transparent")
+        header.pack(fill="x", padx=42, pady=(30, 8))
+        ctk.CTkLabel(header, text="Settings", font=("Segoe UI", 30, "bold"), text_color=TEXT).pack(anchor="w")
+        ctk.CTkLabel(header, text="Control how Second Brain behaves and how your memories are stored.", font=("Segoe UI", 14), text_color=TEXT_MUTED).pack(anchor="w", pady=(3, 0))
+
+        ctk.CTkFrame(self, height=1, fg_color="#17212E").pack(fill="x", padx=42, pady=(20, 14))
+
+        panel = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=14)
+        panel.pack(fill="x", padx=42, pady=(0, 14))
+
+        ctk.CTkLabel(panel, text="PRIVACY", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(anchor="w", padx=22, pady=(20, 8))
         save_screenshots = get_user_setting(self.user_id)
-        self.screenshot_switch = ctk.CTkSwitch(
-                self,
-                text="Keep screenshots for visual recall",
-                command=self.toggle_screenshot_setting
-            )
-
-        self.screenshot_switch.pack(
-            padx=20,
-            pady=20
-        )
-
+        self.screenshot_switch = ctk.CTkSwitch(panel, text="Keep screenshots for visual recall", command=self.toggle_screenshot_setting, text_color=TEXT_BRIGHT, progress_color="#5BD7FF")
+        self.screenshot_switch.pack(anchor="w", padx=22, pady=(0, 20))
         if save_screenshots:
             self.screenshot_switch.select()
         else:
             self.screenshot_switch.deselect()
 
-        title = ctk.CTkLabel(
-            self,
-            text="⚙ Settings",
-            font=("Segoe UI", 28, "bold"),
-            text_color="#F2F6FF"
-        )
-        title.pack(pady=(25, 15))
-
-        ctk.CTkLabel(
-            self,
-            text="Appearance Mode"
-        ).pack(anchor="w", padx=30)
-
-        appearance = ctk.CTkOptionMenu(
-            self,
-            values=["Dark", "Light"],
-            command=self.change_mode
-        )
-
+        appearance_panel = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=14)
+        appearance_panel.pack(fill="x", padx=42, pady=(0, 14))
+        ctk.CTkLabel(appearance_panel, text="APPEARANCE", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(anchor="w", padx=22, pady=(20, 8))
+        appearance = ctk.CTkOptionMenu(appearance_panel, values=["Dark", "Light"], command=self.change_mode, fg_color=SURFACE_ALT, button_color=SURFACE_ALT, button_hover_color="#172536", text_color=TEXT_BRIGHT, dropdown_fg_color=SURFACE_ALT, dropdown_hover_color="#172536")
         appearance.set("Dark")
-        appearance.pack(
-            padx=30,
-            pady=(5, 20),
-            anchor="w"
-        )
+        appearance.pack(anchor="w", padx=22, pady=(0, 20))
 
-        ctk.CTkLabel(
-            self,
-            text="About"
-        ).pack(anchor="w", padx=30)
-
-        about = ctk.CTkTextbox(
-            self,
-            height=220
-        )
-
-        about.pack(
-            fill="x",
-            padx=30,
-            pady=15
-        )
-
-        about.insert(
-            "end",
-            """Second Brain AI
-
-Version 1.0
-
-JARVIS is an intelligent desktop assistant designed to remember, understand, and organize your digital activities. 
-It continuously captures your workflow, recognizes on-screen content, and builds a searchable memory of your work, allowing you to retrieve past information using simple natural language. 
-Whether you're coding, researching, studying, or managing documents, JARVIS helps you instantly recall what you've seen, learned, or worked on—so you can focus on creating instead of remembering. 
-Built with privacy and productivity at its core, JARVIS transforms your computer into a smart, context-aware workspace that evolves with you.
-"""
-        )
-
+        about_panel = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=14)
+        about_panel.pack(fill="both", expand=True, padx=42, pady=(0, 30))
+        ctk.CTkLabel(about_panel, text="ABOUT SECOND BRAIN", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(anchor="w", padx=22, pady=(20, 8))
+        about = ctk.CTkTextbox(about_panel, height=180, fg_color="transparent", border_width=0, text_color=TEXT_SOFT, font=("Segoe UI", 12), wrap="word")
+        about.pack(fill="both", expand=True, padx=22, pady=(0, 20))
+        about.insert("end", "Second Brain AI\n\nVersion 1.0\n\nJARVIS is an intelligent desktop assistant designed to remember, understand, and organize your digital activities. It captures your workflow, understands on-screen content, and builds a searchable memory of your work so you can recall past information using natural language.")
         about.configure(state="disabled")
 
-
     def change_mode(self, mode):
-
         ctk.set_appearance_mode(mode)
 
     def toggle_screenshot_setting(self):
-
         enabled = self.screenshot_switch.get()
-
-        set_user_setting(
-            self.user_id,
-            bool(enabled)
-        )
-
-        if enabled:
-            print("📸 Screenshot storage enabled")
-        else:
-            print("🔒 Screenshot storage disabled")    
+        set_user_setting(self.user_id, bool(enabled))
