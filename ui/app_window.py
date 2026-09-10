@@ -27,7 +27,7 @@ class AppWindow(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        self.sidebar = Sidebar(self, self.show_page, username)
+        self.sidebar = Sidebar(self, self.show_page, username, user_id=self.user_id)
         self.sidebar.grid(row=0, column=0, sticky="ns")
 
         self.container = ctk.CTkFrame(
