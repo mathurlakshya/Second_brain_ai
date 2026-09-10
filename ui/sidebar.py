@@ -19,6 +19,8 @@ class Sidebar(ctk.CTkFrame):
         self.username = username
         self.change_page = change_page
         self.account_menu = None
+        self.nav_buttons = {}
+        self.active_page = None
 
         self.grid_propagate(False)
 
@@ -73,22 +75,63 @@ class Sidebar(ctk.CTkFrame):
         )
         self.account_button.pack(fill="x", padx=15)
 
+        # Default active page matches AppWindow.show_page("dashboard")
+        self.set_active("dashboard")
+
     def create_button(self, text, page):
+        """
+        Grok-style nav item:
+        - Default: plain text, no box
+        - Hover: rounded background appears
+        - Active: soft persistent background
+        Works in both light and dark appearance modes.
+        """
         btn = ctk.CTkButton(
             self,
             text=text,
-            height=45,
+            height=40,
             corner_radius=10,
-            command=lambda: self.change_page(page),
-            fg_color=TEXT,
-            hover_color=TEXT_MUTED,
-            text_color=SURFACE
+            command=lambda p=page: self._on_nav_click(p),
+            fg_color="transparent",
+            hover_color=("#E8E8E8", "#1A2433"),
+            text_color=TEXT,
+            border_width=0,
+            anchor="w",
+            font=("Segoe UI", 14)
         )
+        # Mark so theme refresh does not force solid button colors on these.
+        btn._is_nav_item = True
         btn.pack(
             fill="x",
-            padx=15,
-            pady=6
+            padx=12,
+            pady=3
         )
+
+        self.nav_buttons[page] = btn
+
+    def _on_nav_click(self, page):
+        self.set_active(page)
+        self.change_page(page)
+
+    def set_active(self, page):
+        """Highlight the selected nav item; others stay as plain text."""
+        self.active_page = page
+
+        for name, btn in self.nav_buttons.items():
+            if name == page:
+                btn.configure(
+                    fg_color=("#E8E8E8", "#1A2433"),
+                    hover_color=("#E0E0E0", "#243449"),
+                    text_color=TEXT,
+                    font=("Segoe UI", 14, "bold")
+                )
+            else:
+                btn.configure(
+                    fg_color="transparent",
+                    hover_color=("#E8E8E8", "#1A2433"),
+                    text_color=TEXT,
+                    font=("Segoe UI", 14)
+                )
 
     def show_account_menu(self):
         # Toggle the account dropdown.
