@@ -101,17 +101,23 @@ class Sidebar(ctk.CTkFrame):
         self.refresh_thought_threads()
 
     def create_button(self, text, page):
+        """Create a flat navigation item: text by default, surface only on hover."""
         btn = ctk.CTkButton(
             self,
             text=text,
-            height=45,
-            corner_radius=10,
+            height=40,
+            corner_radius=8,
             command=lambda: self.change_page(page),
-            fg_color=TEXT,
-            hover_color=TEXT_MUTED,
-            text_color=SURFACE
+            fg_color="transparent",
+            hover_color=SURFACE_ALT,
+            text_color=TEXT,
+            border_width=0,
+            anchor="w"
         )
-        btn.pack(fill="x", padx=15, pady=6)
+        # Theme refresh must leave these navigation items flat in both modes.
+        btn._is_nav_item = True
+        btn.pack(fill="x", padx=15, pady=3)
+        return btn
 
     def refresh_thought_threads(self):
         """Refresh the sidebar list so new threads appear without restarting."""
@@ -141,6 +147,7 @@ class Sidebar(ctk.CTkFrame):
                         font=("Segoe UI", 10),
                         command=lambda tid=thread_id: self.open_thread(tid),
                     )
+                    row._is_nav_item = True
                     row.pack(fill="x", pady=1)
                     self.thread_rows.append(row)
             else:
