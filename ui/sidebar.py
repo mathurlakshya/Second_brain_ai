@@ -1,29 +1,33 @@
 import customtkinter as ctk
 
+from ui.theme import (
+    SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER,
+    TEXT, TEXT_MUTED, TEXT_BRIGHT
+)
+
 
 class Sidebar(ctk.CTkFrame):
 
-    def __init__(self, parent, change_page,username):
+    def __init__(self, parent, change_page, username):
         super().__init__(
             parent,
             width=230,
-            fg_color="#161B22",
+            fg_color=SURFACE,
             corner_radius=0
         )
-        self.username = username 
-        print('sidebar username: ',self.username)
-        
 
+        self.username = username
         self.change_page = change_page
+        self.account_menu = None
 
         self.grid_propagate(False)
 
         title = ctk.CTkLabel(
             self,
             text="🧠 Second Brain",
-            font=("Segoe UI", 24, "bold")
+            font=("Segoe UI", 24, "bold"),
+            text_color=TEXT
         )
-
         title.pack(pady=(30, 25))
 
         self.create_button("🏠 Dashboard", "dashboard")
@@ -33,51 +37,53 @@ class Sidebar(ctk.CTkFrame):
         self.create_button("📜 Analytics", "analytics")
         self.create_button("⚙️ Settings", "settings")
 
-        spacer = ctk.CTkFrame(
-            self,
-            fg_color="transparent"
-        )
-
+        # Keep the account control at the bottom-left of the sidebar.
+        spacer = ctk.CTkFrame(self, fg_color="transparent")
         spacer.pack(expand=True, fill="both")
 
-        version = ctk.CTkLabel(
+        ctk.CTkFrame(
             self,
-            text="Second Brain AI\nCompetition Edition",
-            justify="center",
-            text_color="gray"
-        )
-
-        version.pack(pady=20)
+            height=1,
+            fg_color=BORDER
+        ).pack(fill="x", padx=15, pady=(0, 10))
 
         self.bottom_frame = ctk.CTkFrame(
             self,
             fg_color="transparent"
         )
-
         self.bottom_frame.pack(
             side="bottom",
             fill="x",
-            pady=20
+            padx=0,
+            pady=(0, 15)
         )
 
         self.account_button = ctk.CTkButton(
             self.bottom_frame,
-            text=f"👤 {self.username} ▼",
-            command=self.show_account_menu
+            text=f"👤  {self.username}  ▾",
+            command=self.show_account_menu,
+            height=42,
+            corner_radius=10,
+            fg_color=SURFACE_ALT,
+            hover_color=BORDER_HOVER,
+            border_width=1,
+            border_color=BORDER,
+            text_color=TEXT_BRIGHT,
+            anchor="w"
         )
-
         self.account_button.pack(fill="x", padx=15)
 
     def create_button(self, text, page):
-
         btn = ctk.CTkButton(
             self,
             text=text,
             height=45,
             corner_radius=10,
-            command=lambda: self.change_page(page)
+            command=lambda: self.change_page(page),
+            fg_color=TEXT,
+            hover_color=TEXT_MUTED,
+            text_color=SURFACE
         )
-
         btn.pack(
             fill="x",
             padx=15,
@@ -85,39 +91,53 @@ class Sidebar(ctk.CTkFrame):
         )
 
     def show_account_menu(self):
-
-        # If menu already exists, close it
-        if hasattr(self, "account_menu") and self.account_menu.winfo_exists():
-            self.account_menu.destroy()
-            return
+        # Toggle the account dropdown.
+        if self.account_menu is not None:
+            try:
+                if self.account_menu.winfo_exists():
+                    self.account_menu.destroy()
+                    self.account_menu = None
+                    return
+            except Exception:
+                self.account_menu = None
 
         self.account_menu = ctk.CTkToplevel(self)
-
         self.account_menu.title("Account")
-        self.account_menu.geometry("180x70")
+        self.account_menu.geometry("220x90")
         self.account_menu.resizable(False, False)
-
-        # Keep it above the main application
         self.account_menu.transient(self.winfo_toplevel())
-        self.account_menu.grab_set()
+        self.account_menu.protocol("WM_DELETE_WINDOW", self.close_account_menu)
 
         logout_button = ctk.CTkButton(
             self.account_menu,
-            text="Logout",
+            text="↪  Log out",
             command=self.logout,
-            fg_color="#DC2626",
-            hover_color="#B91C1C"
+            height=40,
+            corner_radius=8,
+            fg_color=TEXT,
+            hover_color=TEXT_MUTED,
+            text_color=SURFACE
         )
+        logout_button.pack(fill="x", padx=15, pady=15)
 
-        logout_button.pack(
-            fill="x",
-            padx=15,
-            pady=15
-        )   
+        # Position the menu directly above the account button.
+        self.account_menu.update_idletasks()
+        x = self.account_button.winfo_rootx()
+        y = self.account_button.winfo_rooty() - self.account_menu.winfo_height() - 8
+        self.account_menu.geometry(f"220x90+{x}+{max(0, y)}")
+        self.account_menu.grab_set()
+
+    def close_account_menu(self):
+        if self.account_menu is not None:
+            try:
+                self.account_menu.grab_release()
+                self.account_menu.destroy()
+            except Exception:
+                pass
+            self.account_menu = None
 
     def logout(self):
-
-        if hasattr(self, "account_menu") and self.account_menu.winfo_exists():
-            self.account_menu.destroy()
-
+        # The parent Application.logout() clears the active session and
+        # trusted-device token, destroys the app window, and shows AuthPage.
+        self.close_account_menu()
         self.master.master.logout()
