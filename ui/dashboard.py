@@ -36,7 +36,7 @@ class Dashboard(ctk.CTkFrame):
 
         title = ctk.CTkLabel(
             header,
-            text=f"Welcome back, {self.username}",
+            text="👋 Welcome back",
             font=("Segoe UI", 30, "bold"),
             text_color=TEXT
         )
