@@ -1,9 +1,10 @@
-"""Thought Threads: create a thread only after repeated related activity is detected.
+"""Thought Threads: require repeated activity across separate context sessions.
 
-A single memory is never enough to create a thread. We first look for at least
-four recent, semantically related unthreaded memories. The current memory makes
-five total; only then do those memories become a real Thought Thread.
-No extra Gemini request is needed for thread creation.
+A single uninterrupted activity (for example, watching one YouTube video) must
+never become a Thought Thread just because it produced many screenshots.
+A new thread is created only when at least five semantically related memories
+exist AND those memories span at least two distinct activity sessions. A
+session changes when the active app/window context changes and later returns.
 """
 
 import json
@@ -17,8 +18,9 @@ DB_NAME = "second_brain.db"
 THREAD_WINDOW_MINUTES = 45
 THREAD_SIMILARITY = 0.62
 MIN_THREAD_MEMORIES = 5
+MIN_THREAD_SESSIONS = 2
 MAX_CANDIDATE_THREADS = 12
-MAX_CANDIDATE_MEMORIES = 30
+MAX_CANDIDATE_MEMORIES = 100
 
 
 def _now():
@@ -88,6 +90,38 @@ def _similarity(a, b):
     return float(np.dot(a, b))
 
 
+def _context_key(app, window_title):
+    """Normalize the foreground context used to detect activity sessions."""
+    app = re.sub(r"\s+", " ", (app or "").strip()).lower()
+    title = re.sub(r"\s+", " ", (window_title or "").strip()).lower()
+    return app, title
+
+
+def _count_context_sessions(rows, current_row=None):
+    """Count contiguous app/window sessions represented by memory rows.
+
+    Rows may be supplied in newest-first order. A session is a contiguous run
+    of the same normalized foreground app/window. Returning to an old context
+    therefore creates a new session even if the title is identical.
+    """
+    ordered = sorted(rows, key=lambda row: row[1] or "")
+    if current_row is not None and all(row[0] != current_row[0] for row in ordered):
+        ordered.append(current_row)
+        ordered.sort(key=lambda row: row[1] or "")
+
+    if not ordered:
+        return 0
+
+    sessions = 0
+    previous_context = None
+    for row in ordered:
+        context = _context_key(row[2], row[3])
+        if context != previous_context:
+            sessions += 1
+            previous_context = context
+    return sessions
+
+
 def _title_from_memory(app, window_title, summary):
     title = (window_title or "").strip()
     app = (app or "").strip()
@@ -148,7 +182,12 @@ def _create_thread_from_memories(cursor, user_id, memory_rows, title):
 
 
 def _find_repeated_memory_group(cursor, user_id, current_time, current_vector):
-    """Find recent unthreaded memories semantically similar to the current one."""
+    """Find semantically related unthreaded memories for the current activity.
+
+    We deliberately do not require all five memories to be close in wall-clock
+    time. The important anti-false-positive condition is that the matching
+    activity appears in at least two context sessions.
+    """
     cursor.execute("""SELECT id, timestamp, app_name, window_title, summary, embedding
         FROM memories
         WHERE user_id = ? AND thread_id IS NULL
@@ -163,6 +202,9 @@ def _find_repeated_memory_group(cursor, user_id, current_time, current_vector):
         except (TypeError, ValueError):
             continue
 
+        # Keep the recent-window guard only for selecting the current cluster.
+        # A return to an earlier task is represented by a context switch, not
+        # by one long uninterrupted time window.
         age_minutes = abs((current_time - memory_time).total_seconds()) / 60.0
         if age_minutes > THREAD_WINDOW_MINUTES:
             continue
@@ -180,7 +222,7 @@ def _find_repeated_memory_group(cursor, user_id, current_time, current_vector):
 
 
 def assign_memory_to_thread(memory_id, user_id, app, window_title, timestamp, summary, embedding):
-    """Attach a memory to a thread, but create a new thread only at five repeats."""
+    """Attach a memory to a thread or form one after a context return."""
     ensure_thought_threads_schema()
     vector = _normalise_embedding(embedding)
     if vector is None:
@@ -192,8 +234,13 @@ def assign_memory_to_thread(memory_id, user_id, app, window_title, timestamp, su
         cursor = conn.cursor()
         current_time = datetime.fromisoformat(timestamp)
         now = _now()
+        current_row = (
+            memory_id, timestamp, app, window_title, summary,
+            json.dumps(vector.tolist()),
+        )
 
-        # Existing threads continue normally.
+        # Existing threads continue normally. Once a real thread exists,
+        # additional matching memories can keep extending it.
         cursor.execute("""SELECT id, last_seen, memory_count, centroid_embedding
             FROM thought_threads
             WHERE user_id = ? AND status = 'active'
@@ -215,11 +262,10 @@ def assign_memory_to_thread(memory_id, user_id, app, window_title, timestamp, su
                 best_id, best_score = thread_id, score
 
         if best_id is not None and best_score >= THREAD_SIMILARITY:
-            cursor.execute(
+            row = cursor.execute(
                 "SELECT memory_count, centroid_embedding FROM thought_threads WHERE id = ?",
                 (best_id,),
-            )
-            row = cursor.fetchone()
+            ).fetchone()
             if row is None:
                 return None
 
@@ -243,25 +289,28 @@ def assign_memory_to_thread(memory_id, user_id, app, window_title, timestamp, su
             conn.commit()
             return best_id
 
-        # No thread yet: the current memory plus four matching memories creates the thread.
+        # Formation rule: five related memories are necessary, but they must
+        # not all belong to one uninterrupted foreground context. This is the
+        # key protection against long YouTube videos, long meetings, etc.
         group = _find_repeated_memory_group(cursor, user_id, current_time, vector)
-        if len(group) + 1 < MIN_THREAD_MEMORIES:
+        group_with_current = list(group)
+        if all(row[0] != memory_id for row in group_with_current):
+            group_with_current.append(current_row)
+
+        if len(group_with_current) < MIN_THREAD_MEMORIES:
             return None
 
-        current_row = next((row for row in group if row[0] == memory_id), None)
-        if current_row is None:
-            current_row = (
-                memory_id, timestamp, app, window_title, summary,
-                json.dumps(vector.tolist()),
-            )
-            group.append(current_row)
-
-        group = group[:MAX_CANDIDATE_MEMORIES]
-        if len(group) < MIN_THREAD_MEMORIES:
+        session_count = _count_context_sessions(group_with_current)
+        if session_count < MIN_THREAD_SESSIONS:
             return None
 
-        title = _title_from_memory(current_row[2], current_row[3], current_row[4])
-        thread_id = _create_thread_from_memories(cursor, user_id, group, title)
+        group_with_current.sort(key=lambda row: row[1] or "")
+        group_with_current = group_with_current[-MAX_CANDIDATE_MEMORIES:]
+
+        title = _title_from_memory(app, window_title, summary)
+        thread_id = _create_thread_from_memories(
+            cursor, user_id, group_with_current, title
+        )
         if thread_id is None:
             return None
 
@@ -272,7 +321,7 @@ def assign_memory_to_thread(memory_id, user_id, app, window_title, timestamp, su
 
 
 def rebuild_threads(user_id):
-    """Build only five-or-more-memory threads from older memories."""
+    """Build five-or-more-memory threads only across multiple contexts."""
     ensure_thought_threads_schema()
     conn = sqlite3.connect(DB_NAME)
     try:
