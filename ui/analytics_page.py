@@ -23,7 +23,7 @@ class AnalyticsPage(ctk.CTkFrame):
 
         self.memories = self.create_card(stats, "MEMORIES", 0, 0)
         self.apps = self.create_card(stats, "APPS USED", 0, 1)
-        self.latest = self.create_card(stats, "LATEST ACTIVITY", "-", 0, 2)
+        self.latest = self.create_card(stats, "LATEST ACTIVITY", 0, 2, "-")
 
         ctk.CTkButton(self, text="↻  Refresh Analytics", command=self.load_data, width=150, height=38, corner_radius=10, fg_color=SURFACE_ALT, hover_color="#172536", border_width=1, border_color=BORDER_HOVER, text_color=TEXT_BRIGHT).pack(anchor="e", padx=42, pady=(0, 12))
         ctk.CTkFrame(self, height=1, fg_color=BORDER).pack(fill="x", padx=42, pady=(0, 12))
