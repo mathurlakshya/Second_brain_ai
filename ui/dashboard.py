@@ -3,12 +3,17 @@ import customtkinter as ctk
 from ui.floating_recorder import FloatingRecorder
 from memory.recorder import MemoryRecorder
 from ui.chat_panel import ChatPanel
+from ui.theme import (
+    BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER,
+    TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT,
+    ACCENT, ACCENT_HOVER, SUCCESS
+)
 
 
 class Dashboard(ctk.CTkFrame):
 
     def __init__(self, parent, user_id, username):
-        super().__init__(parent, fg_color="#05080F")
+        super().__init__(parent, fg_color=BG)
 
         self.user_id = user_id
         self.username = username
@@ -33,7 +38,7 @@ class Dashboard(ctk.CTkFrame):
             header,
             text=f"Welcome back, {self.username}",
             font=("Segoe UI", 30, "bold"),
-            text_color="#F4F7FB"
+            text_color=TEXT
         )
         title.pack(anchor="w")
 
@@ -41,7 +46,7 @@ class Dashboard(ctk.CTkFrame):
             header,
             text="Your digital memory is ready.",
             font=("Segoe UI", 14),
-            text_color="#7F91A8"
+            text_color=TEXT_MUTED
         )
         subtitle.pack(anchor="w", pady=(3, 0))
 
@@ -49,14 +54,17 @@ class Dashboard(ctk.CTkFrame):
         content = ctk.CTkFrame(self, fg_color="transparent")
         content.pack(fill="both", expand=True, padx=42, pady=(12, 28))
 
-        # LEFT: lightweight information rail
+        # LEFT: memory information rail.
+        # Use an explicit themed background instead of transparent here because
+        # CTkScrollableFrame owns an internal canvas/frame that can otherwise
+        # retain the dark default background in Light mode.
         self.left_panel = ctk.CTkScrollableFrame(
             content,
             width=300,
-            fg_color="transparent",
+            fg_color=SURFACE,
             corner_radius=0,
-            scrollbar_button_color="#182332",
-            scrollbar_button_hover_color="#26374B"
+            scrollbar_button_color=TEXT,
+            scrollbar_button_hover_color=TEXT_MUTED
         )
         self.left_panel.pack(
             side="left",
@@ -81,7 +89,7 @@ class Dashboard(ctk.CTkFrame):
             self.left_panel,
             text="MEMORY",
             font=("Segoe UI", 11, "bold"),
-            text_color="#5F738C"
+            text_color=TEXT
         )
         section.pack(anchor="w", padx=2, pady=(5, 10))
 
@@ -93,7 +101,7 @@ class Dashboard(ctk.CTkFrame):
         ctk.CTkFrame(
             self.left_panel,
             height=1,
-            fg_color="#17212E"
+            fg_color=BORDER
         ).pack(fill="x", pady=(20, 18))
 
         self.start_btn = ctk.CTkButton(
@@ -102,11 +110,11 @@ class Dashboard(ctk.CTkFrame):
             height=40,
             corner_radius=10,
             command=self.toggle_memory,
-            fg_color="#101A27",
-            hover_color="#172536",
+            fg_color=TEXT,
+            hover_color=TEXT_MUTED,
             border_width=1,
-            border_color="#243449",
-            text_color="#DCE8F5"
+            border_color=TEXT,
+            text_color=SURFACE
         )
         self.start_btn.pack(fill="x", pady=(0, 20))
 
@@ -114,7 +122,7 @@ class Dashboard(ctk.CTkFrame):
             self.left_panel,
             text="LIVE STATUS",
             font=("Segoe UI", 11, "bold"),
-            text_color="#5F738C"
+            text_color=TEXT
         )
         status_title.pack(anchor="w", padx=2, pady=(0, 10))
 
@@ -122,7 +130,7 @@ class Dashboard(ctk.CTkFrame):
             self.left_panel,
             text="🔴 Idle",
             font=("Segoe UI", 13, "bold"),
-            text_color="#A9B7C7"
+            text_color=TEXT
         )
         self.status_label.pack(anchor="w", padx=2, pady=(0, 8))
 
@@ -130,7 +138,7 @@ class Dashboard(ctk.CTkFrame):
             self.left_panel,
             text="Current App : -",
             font=("Segoe UI", 12),
-            text_color="#7F91A8",
+            text_color=TEXT,
             wraplength=280,
             justify="left"
         )
@@ -140,7 +148,7 @@ class Dashboard(ctk.CTkFrame):
             self.left_panel,
             text="Current Window : -",
             font=("Segoe UI", 12),
-            text_color="#7F91A8",
+            text_color=TEXT,
             wraplength=280,
             justify="left"
         )
@@ -150,21 +158,21 @@ class Dashboard(ctk.CTkFrame):
             self.left_panel,
             text="Updated : -",
             font=("Segoe UI", 12),
-            text_color="#7F91A8"
+            text_color=TEXT
         )
         self.last_updated.pack(anchor="w", padx=2, pady=2)
 
         ctk.CTkFrame(
             self.left_panel,
             height=1,
-            fg_color="#17212E"
+            fg_color=BORDER
         ).pack(fill="x", pady=(22, 18))
 
         activity_title = ctk.CTkLabel(
             self.left_panel,
             text="RECENT ACTIVITY",
             font=("Segoe UI", 11, "bold"),
-            text_color="#5F738C"
+            text_color=TEXT
         )
         activity_title.pack(anchor="w", padx=2, pady=(0, 10))
 
@@ -174,9 +182,11 @@ class Dashboard(ctk.CTkFrame):
             fg_color="transparent",
             border_width=0,
             corner_radius=0,
-            text_color="#8294A9",
+            text_color=TEXT,
             font=("Segoe UI", 11),
-            wrap="word"
+            wrap="word",
+            scrollbar_button_color=TEXT,
+            scrollbar_button_hover_color=TEXT_MUTED
         )
         self.timeline.pack(fill="x", padx=0, pady=0)
         self.timeline.insert("end", "Waiting for activity...")
@@ -192,12 +202,11 @@ class Dashboard(ctk.CTkFrame):
             pady=(8, 0)
         )
 
-        # Floating-style icon
         icon = ctk.CTkLabel(
             jarvis_header,
             text="✦",
             font=("Segoe UI", 31, "bold"),
-            text_color="#5BD7FF"
+            text_color=ACCENT
         )
         icon.pack(side="left", padx=(0, 12))
 
@@ -211,7 +220,7 @@ class Dashboard(ctk.CTkFrame):
             heading_group,
             text="JARVIS",
             font=("Segoe UI", 25, "bold"),
-            text_color="#F4F7FB"
+            text_color=TEXT
         )
         jarvis_title.pack(anchor="w")
 
@@ -219,14 +228,14 @@ class Dashboard(ctk.CTkFrame):
             heading_group,
             text="Your memory-aware desktop intelligence",
             font=("Segoe UI", 12),
-            text_color="#71849A"
+            text_color=TEXT_MUTED
         )
         jarvis_sub.pack(anchor="w", pady=(1, 0))
 
         ctk.CTkFrame(
             self.right_panel,
             height=1,
-            fg_color="#111B27"
+            fg_color=BORDER
         ).pack(fill="x", pady=(20, 12))
 
         self.chat = ChatPanel(self.right_panel)
@@ -244,7 +253,7 @@ class Dashboard(ctk.CTkFrame):
             row,
             text=title,
             font=("Segoe UI", 12),
-            text_color="#71849A"
+            text_color=TEXT
         )
         label.pack(side="left")
 
@@ -252,13 +261,9 @@ class Dashboard(ctk.CTkFrame):
             row,
             text=value,
             font=("Segoe UI", 12, "bold"),
-            text_color="#C7D3E0"
+            text_color=TEXT
         )
         value_label.pack(side="right")
-
-    # ---------------------------------------------------
-    # START / STOP MEMORY
-    # ---------------------------------------------------
 
     def toggle_memory(self):
         if self.recorder.running:
@@ -292,7 +297,7 @@ class Dashboard(ctk.CTkFrame):
         self.start_btn.configure(text="🟢  Recording...")
         self.status_label.configure(
             text="🟢 Recording",
-            text_color="#6EE7A8"
+            text_color=SUCCESS
         )
 
         self.sync_floating_state(True)
@@ -310,7 +315,7 @@ class Dashboard(ctk.CTkFrame):
             self.start_btn.configure(text="▶  Start Memory")
             self.status_label.configure(
                 text="🔴 Idle",
-                text_color="#A9B7C7"
+                text_color=TEXT
             )
             return True
 
@@ -322,7 +327,7 @@ class Dashboard(ctk.CTkFrame):
         self.start_btn.configure(text="▶  Start Memory")
         self.status_label.configure(
             text="🔴 Idle",
-            text_color="#A9B7C7"
+            text_color=TEXT
         )
         self.current_app.configure(text="Current App : -")
         self.current_window.configure(text="Current Window : -")
@@ -330,10 +335,6 @@ class Dashboard(ctk.CTkFrame):
 
         print("🔴 Recording stopped")
         return True
-
-    # ---------------------------------------------------
-    # FLOATING RECORDER
-    # ---------------------------------------------------
 
     def create_floating_recorder(self):
         if self.floating is not None:
@@ -402,10 +403,6 @@ class Dashboard(ctk.CTkFrame):
                 print("🧹 FloatingRecorder reference cleared")
         except Exception:
             self.floating = None
-
-    # ---------------------------------------------------
-    # LIVE STATUS UPDATE
-    # ---------------------------------------------------
 
     def update_status(self, app, title, timestamp):
         self.after(
