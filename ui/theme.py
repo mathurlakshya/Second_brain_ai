@@ -93,7 +93,10 @@ def refresh_theme(root):
 
             # Light mode is intentionally high-contrast: white surfaces,
             # black text, and black controls/scrollbars.
-            if light_mode:
+            # Skip Grok-style sidebar nav items (transparent + hover box).
+            is_nav_item = getattr(widget, "_is_nav_item", False)
+
+            if light_mode and not is_nav_item:
                 if isinstance(widget, ctk.CTkButton):
                     widget.configure(
                         fg_color=("#000000", "#101A27"),
@@ -152,6 +155,14 @@ def refresh_theme(root):
 
                 elif isinstance(widget, ctk.CTkLabel):
                     widget.configure(text_color=TEXT)
+
+            # After theme switch, re-apply active nav highlight if this is the sidebar.
+            if hasattr(widget, "set_active") and hasattr(widget, "active_page"):
+                try:
+                    if widget.active_page:
+                        widget.set_active(widget.active_page)
+                except Exception:
+                    pass
 
         except Exception:
             pass
