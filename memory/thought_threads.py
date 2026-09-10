@@ -1,8 +1,8 @@
 """Thought Threads: create a thread only after repeated related activity is detected.
 
 A single memory is never enough to create a thread. We first look for at least
-five recent, semantically related unthreaded memories. Once that threshold is
-reached, those memories become a real Thought Thread and receive a local title.
+four recent, semantically related unthreaded memories. The current memory makes
+five total; only then do those memories become a real Thought Thread.
 No extra Gemini request is needed for thread creation.
 """
 
@@ -243,9 +243,9 @@ def assign_memory_to_thread(memory_id, user_id, app, window_title, timestamp, su
             conn.commit()
             return best_id
 
-        # No thread yet: the fifth related memory creates the thread.
+        # No thread yet: the current memory plus four matching memories creates the thread.
         group = _find_repeated_memory_group(cursor, user_id, current_time, vector)
-        if len(group) < MIN_THREAD_MEMORIES:
+        if len(group) + 1 < MIN_THREAD_MEMORIES:
             return None
 
         current_row = next((row for row in group if row[0] == memory_id), None)
@@ -257,6 +257,9 @@ def assign_memory_to_thread(memory_id, user_id, app, window_title, timestamp, su
             group.append(current_row)
 
         group = group[:MAX_CANDIDATE_MEMORIES]
+        if len(group) < MIN_THREAD_MEMORIES:
+            return None
+
         title = _title_from_memory(current_row[2], current_row[3], current_row[4])
         thread_id = _create_thread_from_memories(cursor, user_id, group, title)
         if thread_id is None:
