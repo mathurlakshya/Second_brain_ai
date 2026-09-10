@@ -44,7 +44,7 @@ class AppWindow(ctk.CTkFrame):
             "memory": MemoryPage(self.container),
             "thought_threads": ThoughtThreadsPage(self.container, self.user_id),
             "live_context": LiveContext(self.container),
-            "search": SearchPage(self.container),
+            "search": SearchPage(self.container, self.user_id),
             "analytics": AnalyticsPage(self.container),
             "settings": SettingsPage(self.container, user_id=self.user_id),
         }
