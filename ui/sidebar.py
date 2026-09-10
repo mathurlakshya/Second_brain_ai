@@ -1,5 +1,6 @@
 import customtkinter as ctk
 
+from memory.thought_threads import get_thought_threads
 from ui.theme import (
     SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER,
     TEXT, TEXT_MUTED, TEXT_BRIGHT
@@ -8,7 +9,7 @@ from ui.theme import (
 
 class Sidebar(ctk.CTkFrame):
 
-    def __init__(self, parent, change_page, username):
+    def __init__(self, parent, change_page, username, user_id=None):
         super().__init__(
             parent,
             width=230,
@@ -17,8 +18,11 @@ class Sidebar(ctk.CTkFrame):
         )
 
         self.username = username
+        self.user_id = user_id
         self.change_page = change_page
         self.account_menu = None
+        self.thread_rows = []
+        self.thread_refresh_job = None
         self.grid_propagate(False)
 
         title = ctk.CTkLabel(
@@ -31,11 +35,33 @@ class Sidebar(ctk.CTkFrame):
 
         self.create_button("🏠 Dashboard", "dashboard")
         self.create_button("🧠 Memory", "memory")
-        self.create_button("✦ Thought Threads", "thought_threads")
         self.create_button("👁 Live Context", "live_context")
         self.create_button("🔍 Search", "search")
         self.create_button("📜 Analytics", "analytics")
         self.create_button("⚙️ Settings", "settings")
+
+        # Thought Threads live directly below Settings. The section starts
+        # empty and populates automatically once five sufficiently similar
+        # memories have been detected for the same activity.
+        self.thread_section = ctk.CTkFrame(self, fg_color="transparent")
+        self.thread_section.pack(fill="x", padx=15, pady=(14, 0))
+
+        ctk.CTkLabel(
+            self.thread_section,
+            text="THOUGHT THREADS",
+            font=("Segoe UI", 11, "bold"),
+            text_color=TEXT_MUTED,
+            anchor="w"
+        ).pack(fill="x", pady=(0, 6))
+
+        self.thread_empty_label = ctk.CTkLabel(
+            self.thread_section,
+            text="No thought threads yet",
+            font=("Segoe UI", 11),
+            text_color=TEXT_MUTED,
+            anchor="w"
+        )
+        self.thread_empty_label.pack(fill="x", pady=(0, 2))
 
         spacer = ctk.CTkFrame(self, fg_color="transparent")
         spacer.pack(expand=True, fill="both")
@@ -72,6 +98,8 @@ class Sidebar(ctk.CTkFrame):
         )
         self.account_button.pack(fill="x", padx=15)
 
+        self.refresh_thought_threads()
+
     def create_button(self, text, page):
         btn = ctk.CTkButton(
             self,
@@ -84,6 +112,55 @@ class Sidebar(ctk.CTkFrame):
             text_color=SURFACE
         )
         btn.pack(fill="x", padx=15, pady=6)
+
+    def refresh_thought_threads(self):
+        """Refresh the sidebar list so new threads appear without restarting."""
+        try:
+            threads = get_thought_threads(self.user_id, limit=8) if self.user_id is not None else []
+
+            for row in self.thread_rows:
+                try:
+                    row.destroy()
+                except Exception:
+                    pass
+            self.thread_rows.clear()
+
+            if threads:
+                self.thread_empty_label.pack_forget()
+                for thread in threads:
+                    thread_id, title, _created, _updated, _last_seen, count, _status = thread
+                    row = ctk.CTkButton(
+                        self.thread_section,
+                        text=f"{title}  ·  {count}"[:38],
+                        height=32,
+                        corner_radius=7,
+                        fg_color="transparent",
+                        hover_color=SURFACE_ALT,
+                        text_color=TEXT_BRIGHT,
+                        anchor="w",
+                        font=("Segoe UI", 10),
+                        command=lambda tid=thread_id: self.open_thread(tid),
+                    )
+                    row.pack(fill="x", pady=1)
+                    self.thread_rows.append(row)
+            else:
+                self.thread_empty_label.pack(fill="x", pady=(0, 2))
+        except Exception as e:
+            print(f"⚠️ Thought thread sidebar refresh failed: {e}")
+
+        try:
+            self.thread_refresh_job = self.after(3000, self.refresh_thought_threads)
+        except Exception:
+            self.thread_refresh_job = None
+
+    def open_thread(self, thread_id):
+        self.change_page("thought_threads")
+        try:
+            page = self.master.master.pages.get("thought_threads")
+            if page is not None and hasattr(page, "select_thread"):
+                page.select_thread(thread_id)
+        except Exception:
+            pass
 
     def show_account_menu(self):
         if self.account_menu is not None:
