@@ -1,5 +1,6 @@
 import customtkinter as ctk
 
+from memory.thought_threads import get_thought_threads
 from ui.theme import (
     SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER,
     TEXT, TEXT_MUTED, TEXT_BRIGHT
@@ -8,7 +9,7 @@ from ui.theme import (
 
 class Sidebar(ctk.CTkFrame):
 
-    def __init__(self, parent, change_page, username):
+    def __init__(self, parent, change_page, username, user_id=None):
         super().__init__(
             parent,
             width=230,
@@ -17,11 +18,11 @@ class Sidebar(ctk.CTkFrame):
         )
 
         self.username = username
+        self.user_id = user_id
         self.change_page = change_page
         self.account_menu = None
-        self.nav_buttons = {}
-        self.active_page = None
-
+        self.thread_rows = []
+        self.thread_refresh_job = None
         self.grid_propagate(False)
 
         title = ctk.CTkLabel(
@@ -39,7 +40,29 @@ class Sidebar(ctk.CTkFrame):
         self.create_button("📜 Analytics", "analytics")
         self.create_button("⚙️ Settings", "settings")
 
-        # Keep the account control at the bottom-left of the sidebar.
+        # Thought Threads live directly below Settings. The section starts
+        # empty and populates automatically once five sufficiently similar
+        # memories have been detected for the same activity.
+        self.thread_section = ctk.CTkFrame(self, fg_color="transparent")
+        self.thread_section.pack(fill="x", padx=15, pady=(14, 0))
+
+        ctk.CTkLabel(
+            self.thread_section,
+            text="THOUGHT THREADS",
+            font=("Segoe UI", 11, "bold"),
+            text_color=TEXT_MUTED,
+            anchor="w"
+        ).pack(fill="x", pady=(0, 6))
+
+        self.thread_empty_label = ctk.CTkLabel(
+            self.thread_section,
+            text="No thought threads yet",
+            font=("Segoe UI", 11),
+            text_color=TEXT_MUTED,
+            anchor="w"
+        )
+        self.thread_empty_label.pack(fill="x", pady=(0, 2))
+
         spacer = ctk.CTkFrame(self, fg_color="transparent")
         spacer.pack(expand=True, fill="both")
 
@@ -75,66 +98,71 @@ class Sidebar(ctk.CTkFrame):
         )
         self.account_button.pack(fill="x", padx=15)
 
-        # Default active page matches AppWindow.show_page("dashboard")
-        self.set_active("dashboard")
+        self.refresh_thought_threads()
 
     def create_button(self, text, page):
-        """
-        Grok-style nav item:
-        - Default: plain text, no box
-        - Hover: rounded background appears
-        - Active: soft persistent background
-        Works in both light and dark appearance modes.
-        """
         btn = ctk.CTkButton(
             self,
             text=text,
-            height=40,
+            height=45,
             corner_radius=10,
-            command=lambda p=page: self._on_nav_click(p),
-            fg_color="transparent",
-            hover_color=("#E8E8E8", "#1A2433"),
-            text_color=TEXT,
-            border_width=0,
-            anchor="w",
-            font=("Segoe UI", 14)
+            command=lambda: self.change_page(page),
+            fg_color=TEXT,
+            hover_color=TEXT_MUTED,
+            text_color=SURFACE
         )
-        # Mark so theme refresh does not force solid button colors on these.
-        btn._is_nav_item = True
-        btn.pack(
-            fill="x",
-            padx=12,
-            pady=3
-        )
+        btn.pack(fill="x", padx=15, pady=6)
 
-        self.nav_buttons[page] = btn
+    def refresh_thought_threads(self):
+        """Refresh the sidebar list so new threads appear without restarting."""
+        try:
+            threads = get_thought_threads(self.user_id, limit=8) if self.user_id is not None else []
 
-    def _on_nav_click(self, page):
-        self.set_active(page)
-        self.change_page(page)
+            for row in self.thread_rows:
+                try:
+                    row.destroy()
+                except Exception:
+                    pass
+            self.thread_rows.clear()
 
-    def set_active(self, page):
-        """Highlight the selected nav item; others stay as plain text."""
-        self.active_page = page
-
-        for name, btn in self.nav_buttons.items():
-            if name == page:
-                btn.configure(
-                    fg_color=("#E8E8E8", "#1A2433"),
-                    hover_color=("#E0E0E0", "#243449"),
-                    text_color=TEXT,
-                    font=("Segoe UI", 14, "bold")
-                )
+            if threads:
+                self.thread_empty_label.pack_forget()
+                for thread in threads:
+                    thread_id, title, _created, _updated, _last_seen, count, _status = thread
+                    row = ctk.CTkButton(
+                        self.thread_section,
+                        text=f"{title}  ·  {count}"[:38],
+                        height=32,
+                        corner_radius=7,
+                        fg_color="transparent",
+                        hover_color=SURFACE_ALT,
+                        text_color=TEXT_BRIGHT,
+                        anchor="w",
+                        font=("Segoe UI", 10),
+                        command=lambda tid=thread_id: self.open_thread(tid),
+                    )
+                    row.pack(fill="x", pady=1)
+                    self.thread_rows.append(row)
             else:
-                btn.configure(
-                    fg_color="transparent",
-                    hover_color=("#E8E8E8", "#1A2433"),
-                    text_color=TEXT,
-                    font=("Segoe UI", 14)
-                )
+                self.thread_empty_label.pack(fill="x", pady=(0, 2))
+        except Exception as e:
+            print(f"⚠️ Thought thread sidebar refresh failed: {e}")
+
+        try:
+            self.thread_refresh_job = self.after(3000, self.refresh_thought_threads)
+        except Exception:
+            self.thread_refresh_job = None
+
+    def open_thread(self, thread_id):
+        self.change_page("thought_threads")
+        try:
+            page = self.master.master.pages.get("thought_threads")
+            if page is not None and hasattr(page, "select_thread"):
+                page.select_thread(thread_id)
+        except Exception:
+            pass
 
     def show_account_menu(self):
-        # Toggle the account dropdown.
         if self.account_menu is not None:
             try:
                 if self.account_menu.winfo_exists():
@@ -163,7 +191,6 @@ class Sidebar(ctk.CTkFrame):
         )
         logout_button.pack(fill="x", padx=15, pady=15)
 
-        # Position the menu directly above the account button.
         self.account_menu.update_idletasks()
         x = self.account_button.winfo_rootx()
         y = self.account_button.winfo_rooty() - self.account_menu.winfo_height() - 8
@@ -180,7 +207,5 @@ class Sidebar(ctk.CTkFrame):
             self.account_menu = None
 
     def logout(self):
-        # The parent Application.logout() clears the active session and
-        # trusted-device token, destroys the app window, and shows AuthPage.
         self.close_account_menu()
         self.master.master.logout()
