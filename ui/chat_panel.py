@@ -1,6 +1,7 @@
 import customtkinter as ctk
 import threading
 from ai.gemini import ask_jarvis
+from ui.theme import BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER, TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT, ACCENT, ACCENT_HOVER
 
 
 def format_response(text):
@@ -38,11 +39,11 @@ def format_response(text):
 class ChatPanel(ctk.CTkFrame):
 
     def __init__(self, parent):
-        super().__init__(
-            parent,
-            fg_color="transparent",
-            corner_radius=0
-        )
+        super().__init__(parent, fg_color="transparent", corner_radius=0)
+
+        self.thinking = False
+        self.thinking_step = 0
+        self.typing_after_id = None
 
         self.build_ui()
 
@@ -56,20 +57,13 @@ class ChatPanel(ctk.CTkFrame):
             fg_color="transparent",
             border_width=0,
             corner_radius=0,
-            text_color="#D6E0EB"
-        )
-
-        self.chat_box.configure(
+            text_color=TEXT,
             font=("Segoe UI Variable", 15),
-            wrap="word"
+            wrap="word",
+            scrollbar_button_color=TEXT,
+            scrollbar_button_hover_color=TEXT_MUTED
         )
-
-        self.chat_box.pack(
-            fill="both",
-            expand=True,
-            padx=2,
-            pady=(0, 14)
-        )
+        self.chat_box.pack(fill="both", expand=True, padx=2, pady=(0, 14))
 
         self.chat_box.insert(
             "end",
@@ -82,21 +76,17 @@ or anything happening on your computer.
 
 """
         )
-
         self.chat_box.configure(state="disabled")
 
         # ---------- FLOATING COMMAND BAR ----------
         input_frame = ctk.CTkFrame(
             self,
-            fg_color="#0B121C",
+            fg_color=SURFACE,
             corner_radius=14,
             border_width=1,
-            border_color="#1B2A3B"
+            border_color=BORDER
         )
-        input_frame.pack(
-            fill="x",
-            pady=(0, 2)
-        )
+        input_frame.pack(fill="x", pady=(0, 2))
 
         self.entry = ctk.CTkEntry(
             input_frame,
@@ -104,23 +94,12 @@ or anything happening on your computer.
             height=44,
             fg_color="transparent",
             border_width=0,
-            text_color="#EDF4FB",
-            placeholder_text_color="#61758B",
+            text_color=TEXT,
+            placeholder_text_color=TEXT_MUTED,
             font=("Segoe UI", 13)
         )
-
-        self.entry.pack(
-            side="left",
-            fill="x",
-            expand=True,
-            padx=(14, 6),
-            pady=4
-        )
-
-        self.entry.bind(
-            "<Return>",
-            lambda event: self.send_message()
-        )
+        self.entry.pack(side="left", fill="x", expand=True, padx=(14, 6), pady=4)
+        self.entry.bind("<Return>", lambda event: self.send_message())
 
         self.send_btn = ctk.CTkButton(
             input_frame,
@@ -129,48 +108,63 @@ or anything happening on your computer.
             height=36,
             corner_radius=10,
             command=self.send_message,
-            fg_color="#1C9ED1",
-            hover_color="#1788B5",
-            text_color="white",
+            fg_color=ACCENT,
+            hover_color=ACCENT_HOVER,
+            text_color=SURFACE,
             font=("Segoe UI", 15, "bold")
         )
-
-        self.send_btn.pack(
-            side="right",
-            padx=(0, 5),
-            pady=4
-        )
+        self.send_btn.pack(side="right", padx=(0, 5), pady=4)
 
     def send_message(self):
         question = self.entry.get().strip()
 
-        if question == "":
+        if not question or self.thinking:
             return
 
         self.chat_box.configure(state="normal")
+        self.chat_box.insert("end", f"\n\nYOU\n{question}\n\n")
 
-        self.chat_box.insert(
-            "end",
-            f"\n\nYOU\n{question}\n\n"
-        )
-
-        self.chat_box.insert(
-            "end",
-            "JARVIS is thinking...\n"
-        )
-
+        # A named Tk text mark lets us remove only the thinking indicator
+        # when the real response arrives, without rebuilding the whole chat.
+        self.chat_box.mark_set("thinking_start", "end-1c")
+        self.chat_box.insert("end", "✦ JARVIS is thinking")
         self.chat_box.see("end")
         self.chat_box.configure(state="disabled")
 
         self.entry.delete(0, "end")
-
+        self.entry.configure(state="disabled")
         self.send_btn.configure(state="disabled")
+
+        self.thinking = True
+        self.thinking_step = 0
+        self.animate_thinking()
 
         threading.Thread(
             target=self.get_answer,
             args=(question,),
             daemon=True
         ).start()
+
+    def animate_thinking(self):
+        """Animate a subtle floating/dots effect while Gemini is working."""
+        if not self.thinking:
+            return
+
+        dots = "." * ((self.thinking_step % 3) + 1)
+        pulse = ("✦", "✧", "✦", "✧")[self.thinking_step % 4]
+        text = f"{pulse} JARVIS is thinking{dots}"
+
+        try:
+            self.chat_box.configure(state="normal")
+            self.chat_box.delete("thinking_start", "end")
+            self.chat_box.insert("end", text)
+            self.chat_box.see("end")
+            self.chat_box.configure(state="disabled")
+        except Exception:
+            return
+
+        self.thinking_step += 1
+        self.after(280, self.animate_thinking)
 
     def get_answer(self, question):
         try:
@@ -184,27 +178,49 @@ or anything happening on your computer.
         except Exception as e:
             answer = f"Sorry, I couldn't generate a response.\n\n{e}"
 
-        def update():
-            self.chat_box.configure(state="normal")
+        self.after(0, self.show_answer, answer)
 
-            content = self.chat_box.get("1.0", "end")
+    def show_answer(self, answer):
+        """Replace the thinking indicator and reveal the response progressively."""
+        self.thinking = False
 
-            content = content.replace(
-                "JARVIS is thinking...\n",
-                ""
-            )
+        if self.typing_after_id is not None:
+            try:
+                self.after_cancel(self.typing_after_id)
+            except Exception:
+                pass
+            self.typing_after_id = None
 
-            self.chat_box.delete("1.0", "end")
-            self.chat_box.insert("1.0", content)
+        self.chat_box.configure(state="normal")
+        self.chat_box.delete("thinking_start", "end")
+        self.chat_box.insert("end", "✦ JARVIS\n")
+        self.chat_box.configure(state="disabled")
 
-            self.chat_box.insert(
-                "end",
-                f"\nJARVIS\n{answer}\n"
-            )
+        self.type_response(answer, 0)
 
-            self.chat_box.see("end")
-            self.chat_box.configure(state="disabled")
+    def type_response(self, answer, index):
+        """Professional chatbot-style type-on response animation."""
+        if index >= len(answer):
+            self.typing_after_id = None
             self.send_btn.configure(state="normal")
+            self.entry.configure(state="normal")
             self.entry.focus_set()
+            return
 
-        self.after(0, update)
+        # Add a few characters at once so long Gemini responses animate
+        # smoothly without taking an excessive amount of time.
+        chunk_size = 2 if len(answer) > 500 else 1
+        next_index = min(index + chunk_size, len(answer))
+        chunk = answer[index:next_index]
+
+        self.chat_box.configure(state="normal")
+        self.chat_box.insert("end", chunk)
+        self.chat_box.see("end")
+        self.chat_box.configure(state="disabled")
+
+        # Slightly faster around spaces/newlines, giving a natural typing rhythm.
+        delay = 14 if chunk.endswith((" ", "\n")) else 22
+        self.typing_after_id = self.after(
+            delay,
+            lambda: self.type_response(answer, next_index)
+        )
