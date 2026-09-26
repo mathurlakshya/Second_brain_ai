@@ -15,18 +15,26 @@ import time
 
 MODEL = "gemini-3.6-flash"
 FALLBACK_MODEL = "gemini-3.7-flash"
-# Your existing API key from config.py
-if not GEMINI_API_KEY:
-    raise RuntimeError(
-        "GEMINI_API_KEY is missing. "
-        "Check your config.py / environment variable."
-    )
 
-client = genai.Client(
-    api_key=GEMINI_API_KEY
-)
+# Gemini is an optional cloud intelligence layer. Core recording, OCR,
+# storage and semantic search must never depend on this client existing.
+client = None
 
-print("✅ Gemini client initialized")
+
+def is_gemini_available():
+    return bool(GEMINI_API_KEY)
+
+
+def _get_client():
+    global client
+    if client is None:
+        if not GEMINI_API_KEY:
+            raise RuntimeError(
+                "Gemini is not configured. Core Second Brain features continue to work locally."
+            )
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        print("✅ Gemini client initialized")
+    return client
 
 
 # ============================================================
@@ -64,7 +72,7 @@ def generate_content(contents, thinking_level="low", max_retries=2):
                     f"(attempt {attempt + 1})"
                 )
 
-                response = client.models.generate_content(
+                response = _get_client().models.generate_content(
                     model=model_name,
                     contents=contents,
                     config=types.GenerateContentConfig(
