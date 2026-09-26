@@ -1,8 +1,6 @@
-import ctypes
 import os
 import time
 import datetime
-from ctypes import wintypes
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
