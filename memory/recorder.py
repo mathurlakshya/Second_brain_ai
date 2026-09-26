@@ -10,7 +10,6 @@ import psutil
 from PIL import Image, ImageOps
 
 from vision.screenshot import capture_screen
-from ai.gemini import summarize_screen
 from vision.ocr import extract_text
 from database.database import (
     create_pending_memory,
@@ -241,14 +240,10 @@ class MemoryRecorder:
                         time.sleep(1)
                         continue
 
-                    self.inactive_memory_count += 1
-
                     print(
-                        f"😴 Inactivity detected "
-                        f"({idle_seconds:.0f}s). "
-                        f"Allowing inactive memory "
-                        f"{self.inactive_memory_count}/"
-                        f"{MAX_INACTIVE_MEMORIES}."
+                        f"😴 Inactivity detected ({idle_seconds:.0f}s). "
+                        f"Inactive memory allowance: "
+                        f"{self.inactive_memory_count}/{MAX_INACTIVE_MEMORIES} already used."
                     )
 
                 # --------------------------------------------------
@@ -348,79 +343,12 @@ class MemoryRecorder:
                     f"💾 Local memory created: ID {memory_id}"
                 )
 
-                # --------------------------------------------------
-                # 5. SELECTIVE GEMINI ENRICHMENT
-                # --------------------------------------------------
-                # Gemini is now an intelligence layer, not the recorder.
-                # It runs on context transitions or at most once per
-                # enrichment interval while the user is active.
-
-                current_time = time.time()
-                should_enrich = (
-                    window_changed
-                    or self.last_ai_enrichment == 0.0
-                    or (
-                        current_time - self.last_ai_enrichment
-                        >= AI_ENRICHMENT_INTERVAL_SECONDS
+                if idle_seconds > IDLE_THRESHOLD_SECONDS:
+                    self.inactive_memory_count += 1
+                    print(
+                        f"😴 Inactive memory stored "
+                        f"{self.inactive_memory_count}/{MAX_INACTIVE_MEMORIES}."
                     )
-                )
-
-                if should_enrich:
-
-                    print("🤖 Starting selective Gemini enrichment...")
-
-                    summary = summarize_screen(
-                        screenshot_path,
-                        ocr_text,
-                    )
-
-                    if summary and not summary.startswith(
-                        ("Summary Error:", "Vision Error:")
-                    ):
-
-                        contains_error = 0
-                        error_text = ""
-
-                        keywords = [
-                            "Traceback",
-                            "Exception",
-                            "ImportError",
-                            "ModuleNotFoundError",
-                            "TypeError",
-                            "ValueError",
-                            "SyntaxError",
-                            "RuntimeError",
-                            "RESOURCE_EXHAUSTED",
-                            "AttributeError",
-                            "NameError",
-                        ]
-
-                        for word in keywords:
-
-                            if word.lower() in summary.lower():
-                                contains_error = 1
-                                error_text = summary
-                                break
-
-                        enriched_embedding = create_embedding(
-                            summary + "\n" + ocr_text
-                        )
-
-                        update_memory(
-                            memory_id,
-                            summary,
-                            ocr_text,
-                            enriched_embedding,
-                            contains_error,
-                            error_text,
-                        )
-
-                        self.last_ai_enrichment = current_time
-
-                        print(
-                            f"✨ Memory enriched with Gemini: "
-                            f"ID {memory_id}"
-                        )
 
                 self.last_window = current_window
                 self.last_meaningful_capture = current_time
@@ -476,9 +404,9 @@ class MemoryRecorder:
 
             ocr_text = extract_text(screenshot_path)
 
-            summary = summarize_screen(
-                screenshot_path,
-                ocr_text,
+            summary = (
+                "Local screen context\n"
+                + ocr_text[:ACCESSIBILITY_MAX_CHARS]
             )
 
             embedding = create_embedding(
