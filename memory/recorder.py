@@ -350,6 +350,7 @@ class MemoryRecorder:
                         f"{self.inactive_memory_count}/{MAX_INACTIVE_MEMORIES}."
                     )
 
+                current_time = time.time()
                 self.last_window = current_window
                 self.last_meaningful_capture = current_time
 
