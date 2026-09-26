@@ -1,32 +1,11 @@
-from PIL import Image
-from ai.gemini import model
+from ai.gemini import analyze_screen as _analyze_screen
 
 
 def analyze_screen(image_path):
+    """Cloud screen analysis on explicit user request.
 
-    try:
-
-        image = Image.open(image_path)
-
-        response = model.generate_content([
-            """
-You are JARVIS inside Second Brain AI.
-
-Analyze this computer screen.
-
-Reply in exactly this format:
-
-Current App:
-What the user is doing:
-Possible Goal:
-Potential Problem:
-
-Keep it under 120 words.
-""",
-            image
-        ])
-
-        return response.text
-
-    except Exception as e:
-        return f"Vision Error:\n{e}"
+    This module is intentionally not used by the memory recorder. Recording,
+    OCR, storage and search remain local; Gemini is only an on-demand
+    intelligence feature.
+    """
+    return _analyze_screen(image_path)
