@@ -71,10 +71,10 @@ def generate_content(contents, thinking_level="low", max_retries=2):
                     f"(attempt {attempt + 1})"
                 )
 
+                from google.genai import types
                 response = _get_client().models.generate_content(
                     model=model_name,
                     contents=contents,
-                    from google.genai import types
                     config=types.GenerateContentConfig(
                         thinking_config=types.ThinkingConfig(
                             thinking_level=thinking_level
