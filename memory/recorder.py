@@ -29,31 +29,7 @@ AI_ENRICHMENT_INTERVAL_SECONDS = 30
 ACCESSIBILITY_MAX_CHARS = 12000
 
 
-class LASTINPUTINFO(ctypes.Structure):
-    _fields_ = [
-        ("cbSize", wintypes.UINT),
-        ("dwTime", wintypes.DWORD),
-    ]
-
-
-def get_idle_seconds():
-    """Return Windows keyboard/mouse idle time in seconds."""
-    try:
-        info = LASTINPUTINFO()
-        info.cbSize = ctypes.sizeof(LASTINPUTINFO)
-
-        if not ctypes.windll.user32.GetLastInputInfo(ctypes.byref(info)):
-            return 0.0
-
-        tick_count = ctypes.windll.kernel32.GetTickCount()
-        elapsed_ms = (tick_count - info.dwTime) & 0xFFFFFFFF
-
-        return max(0.0, elapsed_ms / 1000.0)
-
-    except Exception as exc:
-        print(f"⚠️ Could not read Windows idle time: {exc}")
-        return 0.0
-
+from memory.activity import get_idle_seconds
 
 def extract_accessibility_text(hwnd, max_chars=ACCESSIBILITY_MAX_CHARS):
     """Best-effort Windows UI Automation extraction.
