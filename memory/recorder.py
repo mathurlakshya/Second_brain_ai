@@ -1,22 +1,94 @@
+import ctypes
 import os
+import time
+import datetime
+from ctypes import wintypes
+from concurrent.futures import ThreadPoolExecutor
+
+import numpy as np
 import win32gui
 import win32process
 import psutil
-import datetime
-import time
+from PIL import Image, ImageOps
 
-from concurrent.futures import ThreadPoolExecutor
 from vision.screenshot import capture_screen
 from ai.gemini import summarize_screen
 from vision.ocr import extract_text
-
 from database.database import (
     create_pending_memory,
     update_memory,
-    get_user_setting
+    get_user_setting,
 )
-
 from ai.embeddings import create_embedding
+
+
+CAPTURE_PROBE_SECONDS = 2
+MEMORY_INTERVAL_SECONDS = 5
+IDLE_THRESHOLD_SECONDS = 30
+MAX_INACTIVE_MEMORIES = 5
+SCREEN_CHANGE_THRESHOLD = 0.012
+AI_ENRICHMENT_INTERVAL_SECONDS = 30
+ACCESSIBILITY_MAX_CHARS = 12000
+
+
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [
+        ("cbSize", wintypes.UINT),
+        ("dwTime", wintypes.DWORD),
+    ]
+
+
+def get_idle_seconds():
+    """Return Windows keyboard/mouse idle time in seconds."""
+    try:
+        info = LASTINPUTINFO()
+        info.cbSize = ctypes.sizeof(LASTINPUTINFO)
+
+        if not ctypes.windll.user32.GetLastInputInfo(ctypes.byref(info)):
+            return 0.0
+
+        tick_count = ctypes.windll.kernel32.GetTickCount()
+        elapsed_ms = (tick_count - info.dwTime) & 0xFFFFFFFF
+
+        return max(0.0, elapsed_ms / 1000.0)
+
+    except Exception as exc:
+        print(f"⚠️ Could not read Windows idle time: {exc}")
+        return 0.0
+
+
+def extract_accessibility_text(hwnd, max_chars=ACCESSIBILITY_MAX_CHARS):
+    """Best-effort Windows UI Automation extraction.
+
+    Accessibility/UIA is preferred over OCR because it is cheaper and usually
+    cleaner for native apps, browsers and standard controls.
+    """
+    try:
+        from pywinauto import Desktop
+
+        window = Desktop(backend="uia").window(handle=hwnd)
+        texts = window.texts()
+
+        cleaned = []
+        seen = set()
+
+        for value in texts:
+            value = " ".join((value or "").split())
+
+            if not value or value in seen:
+                continue
+
+            seen.add(value)
+            cleaned.append(value)
+
+            if sum(len(item) + 1 for item in cleaned) >= max_chars:
+                break
+
+        return "\n".join(cleaned)[:max_chars]
+
+    except Exception as exc:
+        print(f"ℹ️ Accessibility extraction unavailable: {exc}")
+        return ""
 
 
 class MemoryRecorder:
@@ -28,9 +100,14 @@ class MemoryRecorder:
         self.last_window = None
         self.callback = callback
 
-        self.processing_pool = ThreadPoolExecutor(
-            max_workers=1
-        )
+        self.inactive_memory_count = 0
+        self.paused_for_inactivity = False
+
+        self.last_probe = None
+        self.last_meaningful_capture = 0.0
+        self.last_ai_enrichment = 0.0
+
+        self.processing_pool = ThreadPoolExecutor(max_workers=1)
 
     # --------------------------------------------------
     # ACTIVE WINDOW
@@ -41,23 +118,82 @@ class MemoryRecorder:
         hwnd = win32gui.GetForegroundWindow()
 
         if not hwnd:
-            return "Unknown", "Unknown"
+            return "Unknown", "Unknown", 0
 
         title = win32gui.GetWindowText(hwnd).strip()
 
         try:
-
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
-
             process = psutil.Process(pid)
-
             app = process.name()
-
         except Exception:
-
             app = "Unknown"
 
-        return app, title
+        return app, title, hwnd
+
+    # --------------------------------------------------
+    # SCREEN CHANGE
+    # --------------------------------------------------
+
+    def _screen_changed(self, screenshot_path):
+
+        try:
+            current = Image.open(screenshot_path).convert("L")
+            current = ImageOps.fit(
+                current,
+                (96, 54),
+                method=Image.Resampling.BILINEAR,
+            )
+
+            current = np.asarray(current, dtype=np.float32) / 255.0
+
+            if self.last_probe is None:
+                self.last_probe = current
+                return True
+
+            difference = float(
+                np.mean(np.abs(current - self.last_probe))
+            )
+
+            changed = difference >= SCREEN_CHANGE_THRESHOLD
+
+            if changed:
+                self.last_probe = current
+
+            return changed
+
+        except Exception as exc:
+            print(f"⚠️ Screen-change check failed: {exc}")
+            return True
+
+    def _discard_screenshot(self, path):
+
+        try:
+            if path and os.path.exists(path):
+                os.remove(path)
+        except Exception as exc:
+            print(f"⚠️ Screenshot cleanup failed: {exc}")
+
+    # --------------------------------------------------
+    # LOCAL CONTEXT
+    # --------------------------------------------------
+
+    def _build_local_context(self, app, title, accessibility_text, ocr_text):
+        text = accessibility_text or ocr_text
+
+        if text:
+            text = text[:ACCESSIBILITY_MAX_CHARS]
+            return (
+                f"Application: {app}\n"
+                f"Window: {title}\n"
+                f"Visible UI text:\n{text}"
+            )
+
+        return (
+            f"Application: {app}\n"
+            f"Window: {title}\n"
+            f"Screen changed, but no readable UI text was available."
+        )
 
     # --------------------------------------------------
     # START
@@ -67,7 +203,7 @@ class MemoryRecorder:
 
         self.running = True
 
-        print("🧠 Memory recorder started")
+        print("🧠 Adaptive memory recorder started")
 
         while self.running:
 
@@ -75,76 +211,130 @@ class MemoryRecorder:
 
             try:
 
-                # ==========================================
-                # 1. GET CURRENT WINDOW
-                # ==========================================
-
-                app, title = self.get_active_window()
-
-                print(
-                    f"\n🪟 Active window: "
-                    f"{app} | {title}"
-                )
+                app, title, hwnd = self.get_active_window()
 
                 if not title:
-
                     time.sleep(1)
                     continue
 
                 current_window = (app, title)
-            
-                # ==========================================
-                # 2. CAPTURE SCREENSHOT
-                # ==========================================
+                window_changed = (
+                    self.last_window is not None
+                    and current_window != self.last_window
+                )
+
+                idle_seconds = get_idle_seconds()
+
+                # App/window changes are meaningful context changes.
+                if window_changed:
+                    self.inactive_memory_count = 0
+                    self.paused_for_inactivity = False
+                    self.last_ai_enrichment = 0.0
+                    print(
+                        f"🔄 Context changed: {self.last_window} -> "
+                        f"{current_window}"
+                    )
+
+                # User activity wakes the recorder immediately.
+                if idle_seconds <= IDLE_THRESHOLD_SECONDS:
+
+                    if self.paused_for_inactivity:
+                        print(
+                            "▶️ User activity detected. "
+                            "Resuming memory capture."
+                        )
+
+                    self.inactive_memory_count = 0
+                    self.paused_for_inactivity = False
+
+                else:
+
+                    if (
+                        self.inactive_memory_count
+                        >= MAX_INACTIVE_MEMORIES
+                    ):
+
+                        if not self.paused_for_inactivity:
+                            print(
+                                "⏸️ Memory processing paused after "
+                                f"{MAX_INACTIVE_MEMORIES} inactive memories."
+                            )
+
+                        self.paused_for_inactivity = True
+
+                        # Lightweight monitoring only. No screenshot,
+                        # OCR, embedding or Gemini work while paused.
+                        time.sleep(1)
+                        continue
+
+                    self.inactive_memory_count += 1
+
+                    print(
+                        f"😴 Inactivity detected "
+                        f"({idle_seconds:.0f}s). "
+                        f"Allowing inactive memory "
+                        f"{self.inactive_memory_count}/"
+                        f"{MAX_INACTIVE_MEMORIES}."
+                    )
+
+                # --------------------------------------------------
+                # 1. CHEAP CAPTURE PROBE
+                # --------------------------------------------------
 
                 screenshot_path = capture_screen()
 
-                print(
-                    f"📸 Screenshot captured: "
-                    f"{screenshot_path}"
-                )
+                if not self._screen_changed(screenshot_path):
+
+                    print("⏭️ Screen unchanged; skipping memory creation.")
+                    self._discard_screenshot(screenshot_path)
+
+                    elapsed = time.time() - cycle_start
+                    time.sleep(max(0, CAPTURE_PROBE_SECONDS - elapsed))
+                    continue
 
                 now = datetime.datetime.now().strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
 
-                # ==========================================
-                # 3. IMMEDIATELY UPDATE UI
-                # ==========================================
+                # --------------------------------------------------
+                # 2. UI CALLBACK
+                # --------------------------------------------------
 
                 if self.callback:
 
                     try:
+                        self.callback(app, title, now)
+                    except Exception as exc:
+                        print(f"⚠️ UI callback error: {exc}")
 
-                        self.callback(
-                            app,
-                            title,
-                            now
-                        )
+                # --------------------------------------------------
+                # 3. ACCESSIBILITY FIRST
+                # --------------------------------------------------
 
-                    except Exception as e:
+                accessibility_text = extract_accessibility_text(hwnd)
 
-                        print(
-                            f"⚠️ UI callback error: {e}"
-                        )
+                if accessibility_text:
+                    print("♿ Accessibility text extracted.")
+                    ocr_text = accessibility_text
+                else:
+                    print("🔎 Accessibility unavailable; running OCR...")
+                    ocr_text = extract_text(screenshot_path)
 
-                print(
-                    "⚡ UI updated immediately "
-                    "after screenshot"
+                # --------------------------------------------------
+                # 4. LOCAL MEMORY FIRST
+                # --------------------------------------------------
+
+                local_summary = self._build_local_context(
+                    app,
+                    title,
+                    accessibility_text,
+                    ocr_text,
                 )
 
-                # ==========================================
-                # 4. CREATE MEMORY IMMEDIATELY
-                # ==========================================
-
-                keep_screenshot = get_user_setting(
-                    self.user_id
-                )
+                keep_screenshot = get_user_setting(self.user_id)
 
                 stored_screenshot = (
-                    screenshot_path
-                    if keep_screenshot
-                    else ""
+                    screenshot_path if keep_screenshot else ""
                 )
 
                 memory_id = create_pending_memory(
@@ -152,159 +342,127 @@ class MemoryRecorder:
                     app,
                     title,
                     now,
-                    stored_screenshot
-                )
-
-                print(
-                    f"💾 Memory created immediately: "
-                    f"ID {memory_id}"
-                )
-
-                # ==========================================
-                # 5. OCR
-                # ==========================================
-
-                print("🔎 Starting OCR...")
-
-                ocr_text = extract_text(
-                    screenshot_path
-                )
-
-                print("✅ OCR completed")
-
-                # ==========================================
-                # 6. GEMINI SUMMARY
-                # ==========================================
-
-                print("🤖 Starting Gemini summary...")
-
-                summary = summarize_screen(
-                    screenshot_path,
-                    ocr_text
-                )
-
-                print("✅ Gemini summary completed")
-
-                # ==========================================
-                # 7. EMBEDDING
-                # ==========================================
-
-                print("🧠 Creating embedding...")
-
-                combined = (
-                    summary +
-                    "\n" +
-                    ocr_text
+                    stored_screenshot,
                 )
 
                 embedding = create_embedding(
-                    combined
+                    local_summary + "\n" + ocr_text
                 )
-
-                print("✅ Embedding completed")
-
-                # ==========================================
-                # 8. ERROR DETECTION
-                # ==========================================
-
-                contains_error = 0
-                error_text = ""
-
-                keywords = [
-                    "Traceback",
-                    "Exception",
-                    "ImportError",
-                    "ModuleNotFoundError",
-                    "TypeError",
-                    "ValueError",
-                    "SyntaxError",
-                    "RuntimeError",
-                    "RESOURCE_EXHAUSTED",
-                    "AttributeError",
-                    "NameError"
-                ]
-
-                for word in keywords:
-
-                    if word.lower() in summary.lower():
-
-                        contains_error = 1
-                        error_text = summary
-
-                        break
-
-                # ==========================================
-                # 9. UPDATE SAME MEMORY
-                # ==========================================
 
                 update_memory(
                     memory_id,
-                    summary,
+                    local_summary,
                     ocr_text,
                     embedding,
-                    contains_error,
-                    error_text
+                    0,
+                    "",
                 )
 
                 print(
-                    f"✅ Memory fully processed: "
-                    f"ID {memory_id}"
+                    f"💾 Local memory created: ID {memory_id}"
                 )
 
-                # ==========================================
-                # 10. DELETE TEMP SCREENSHOT
-                # ==========================================
+                # --------------------------------------------------
+                # 5. SELECTIVE GEMINI ENRICHMENT
+                # --------------------------------------------------
+                # Gemini is now an intelligence layer, not the recorder.
+                # It runs on context transitions or at most once per
+                # enrichment interval while the user is active.
 
-                if not keep_screenshot:
+                current_time = time.time()
+                should_enrich = (
+                    window_changed
+                    or self.last_ai_enrichment == 0.0
+                    or (
+                        current_time - self.last_ai_enrichment
+                        >= AI_ENRICHMENT_INTERVAL_SECONDS
+                    )
+                )
 
-                    try:
+                if should_enrich:
 
-                        if (
-                            screenshot_path
-                            and os.path.exists(
-                                screenshot_path
-                            )
-                        ):
+                    print("🤖 Starting selective Gemini enrichment...")
 
-                            os.remove(
-                                screenshot_path
-                            )
+                    summary = summarize_screen(
+                        screenshot_path,
+                        ocr_text,
+                    )
 
-                            print(
-                                f"🗑️ Deleted temporary "
-                                f"screenshot: "
-                                f"{screenshot_path}"
-                            )
+                    if summary and not summary.startswith(
+                        ("Summary Error:", "Vision Error:")
+                    ):
 
-                    except Exception as e:
+                        contains_error = 0
+                        error_text = ""
+
+                        keywords = [
+                            "Traceback",
+                            "Exception",
+                            "ImportError",
+                            "ModuleNotFoundError",
+                            "TypeError",
+                            "ValueError",
+                            "SyntaxError",
+                            "RuntimeError",
+                            "RESOURCE_EXHAUSTED",
+                            "AttributeError",
+                            "NameError",
+                        ]
+
+                        for word in keywords:
+
+                            if word.lower() in summary.lower():
+                                contains_error = 1
+                                error_text = summary
+                                break
+
+                        enriched_embedding = create_embedding(
+                            summary + "\n" + ocr_text
+                        )
+
+                        update_memory(
+                            memory_id,
+                            summary,
+                            ocr_text,
+                            enriched_embedding,
+                            contains_error,
+                            error_text,
+                        )
+
+                        self.last_ai_enrichment = current_time
 
                         print(
-                            f"⚠️ Screenshot cleanup failed: "
-                            f"{e}"
+                            f"✨ Memory enriched with Gemini: "
+                            f"ID {memory_id}"
                         )
 
                 self.last_window = current_window
+                self.last_meaningful_capture = current_time
 
-            except Exception as e:
+                if not keep_screenshot:
+                    self._discard_screenshot(screenshot_path)
+
+            except Exception as exc:
 
                 print(
                     f"❌ MEMORY RECORDER ERROR: "
-                    f"{type(e).__name__}: {e}"
+                    f"{type(exc).__name__}: {exc}"
                 )
 
-            # ==========================================
-            # KEEP 5-SECOND CAPTURE INTERVAL
-            # ==========================================
+            # --------------------------------------------------
+            # ADAPTIVE CAPTURE INTERVAL
+            # --------------------------------------------------
 
             elapsed = time.time() - cycle_start
 
+            # Probes are cheap and frequent. Expensive processing only
+            # happens for changed screens.
             remaining = max(
                 0,
-                5 - elapsed
+                CAPTURE_PROBE_SECONDS - elapsed,
             )
 
             if self.running:
-
                 time.sleep(remaining)
 
     # --------------------------------------------------
@@ -317,69 +475,33 @@ class MemoryRecorder:
 
         print("🛑 Memory recorder stopped")
 
+    # --------------------------------------------------
+    # LEGACY BACKGROUND PROCESSING
+    # --------------------------------------------------
+
     def process_memory(
         self,
         memory_id,
         screenshot_path,
-        keep_screenshot
+        keep_screenshot,
     ):
-    
+
         try:
-    
-            # ==========================================
-            # OCR
-            # ==========================================
-    
-            print(
-                f"🔎 OCR started for memory {memory_id}"
-            )
-    
-            ocr_text = extract_text(
-                screenshot_path
-            )
-    
-            print(
-                f"✅ OCR completed for memory {memory_id}"
-            )
-    
-            # ==========================================
-            # GEMINI
-            # ==========================================
-    
+
+            ocr_text = extract_text(screenshot_path)
+
             summary = summarize_screen(
                 screenshot_path,
-                ocr_text
+                ocr_text,
             )
-    
-            print(
-                f"✅ Gemini completed for memory {memory_id}"
-            )
-    
-            # ==========================================
-            # EMBEDDING
-            # ==========================================
-    
-            combined = (
-                summary +
-                "\n" +
-                ocr_text
-            )
-    
+
             embedding = create_embedding(
-                combined
+                summary + "\n" + ocr_text
             )
-    
-            print(
-                f"✅ Embedding completed for memory {memory_id}"
-            )
-    
-            # ==========================================
-            # ERROR DETECTION
-            # ==========================================
-    
+
             contains_error = 0
             error_text = ""
-    
+
             keywords = [
                 "Traceback",
                 "Exception",
@@ -391,71 +513,33 @@ class MemoryRecorder:
                 "RuntimeError",
                 "RESOURCE_EXHAUSTED",
                 "AttributeError",
-                "NameError"
+                "NameError",
             ]
-    
+
             for word in keywords:
-    
+
                 if word.lower() in summary.lower():
-    
                     contains_error = 1
                     error_text = summary
-    
                     break
-    
-            # ==========================================
-            # UPDATE MEMORY
-            # ==========================================
-    
+
             update_memory(
                 memory_id,
                 summary,
                 ocr_text,
                 embedding,
                 contains_error,
-                error_text
+                error_text,
             )
-    
+
+        except Exception as exc:
+
             print(
-                f"🧠 Memory {memory_id} fully processed"
+                f"❌ Background processing error for memory "
+                f"{memory_id}: {type(exc).__name__}: {exc}"
             )
-    
-        except Exception as e:
-    
-            print(
-                f"❌ Background processing error "
-                f"for memory {memory_id}: "
-                f"{type(e).__name__}: {e}"
-            )
-    
+
         finally:
-    
-            # ==========================================
-            # DELETE TEMP SCREENSHOT
-            # ==========================================
-    
+
             if not keep_screenshot:
-    
-                try:
-    
-                    if (
-                        screenshot_path
-                        and os.path.exists(
-                            screenshot_path
-                        )
-                    ):
-    
-                        os.remove(
-                            screenshot_path
-                        )
-    
-                        print(
-                            f"🗑️ Deleted temporary screenshot: "
-                            f"{screenshot_path}"
-                        )
-    
-                except Exception as e:
-    
-                    print(
-                        f"⚠️ Screenshot cleanup failed: {e}"
-                    )
+                self._discard_screenshot(screenshot_path)
