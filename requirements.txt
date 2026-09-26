@@ -126,3 +126,6 @@ reportlab
 
 mss
 
+
+# Windows UI Automation
+pywinauto
