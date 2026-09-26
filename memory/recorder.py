@@ -290,6 +290,18 @@ class MemoryRecorder:
                     time.sleep(max(0, CAPTURE_PROBE_SECONDS - elapsed))
                     continue
 
+                if (
+                    self.last_meaningful_capture
+                    and time.time() - self.last_meaningful_capture
+                    < MEMORY_INTERVAL_SECONDS
+                ):
+                    print("⏱️ Screen changed too soon; delaying memory creation.")
+                    self._discard_screenshot(screenshot_path)
+
+                    elapsed = time.time() - cycle_start
+                    time.sleep(max(0, CAPTURE_PROBE_SECONDS - elapsed))
+                    continue
+
                 now = datetime.datetime.now().strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
