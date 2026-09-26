@@ -1,5 +1,3 @@
-from google import genai
-from google.genai import types
 from PIL import Image
 
 from config import GEMINI_API_KEY
@@ -32,6 +30,7 @@ def _get_client():
             raise RuntimeError(
                 "Gemini is not configured. Core Second Brain features continue to work locally."
             )
+        from google import genai
         client = genai.Client(api_key=GEMINI_API_KEY)
         print("✅ Gemini client initialized")
     return client
@@ -75,6 +74,7 @@ def generate_content(contents, thinking_level="low", max_retries=2):
                 response = _get_client().models.generate_content(
                     model=model_name,
                     contents=contents,
+                    from google.genai import types
                     config=types.GenerateContentConfig(
                         thinking_config=types.ThinkingConfig(
                             thinking_level=thinking_level
