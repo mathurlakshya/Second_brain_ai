@@ -3,8 +3,9 @@ import json
 import numpy as np
 
 from ai.embeddings import create_embedding
+from config import DB_PATH
 
-DB_NAME = "second_brain.db"
+DB_NAME = DB_PATH
 
 
 def cosine_similarity(a, b):
