@@ -5,6 +5,7 @@ import pytest
 
 import database.database as db
 import database.auth as auth
+import database.users as users
 
 
 @pytest.fixture()
@@ -12,6 +13,7 @@ def isolated_db(tmp_path, monkeypatch):
     db_path = tmp_path / "test.db"
     monkeypatch.setattr(db, "DB_NAME", str(db_path))
     monkeypatch.setattr(auth, "DB_NAME", str(db_path))
+    monkeypatch.setattr(users, "DB_NAME", str(db_path))
     db.create_database()
     return db_path
 
