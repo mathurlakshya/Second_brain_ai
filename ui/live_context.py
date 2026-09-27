@@ -75,6 +75,9 @@ class LiveContext(ctk.CTkFrame):
         try:
             result = analyze_screen(image_path)
             save_context(result)
+            self.after(0, lambda: self.show_analysis(result))
+        except Exception:
+            self.after(0, lambda: self.show_analysis("I could not analyze the screen right now. Please try again."))
         finally:
             try:
                 import os
@@ -82,7 +85,6 @@ class LiveContext(ctk.CTkFrame):
                     os.remove(image_path)
             except OSError:
                 pass
-        self.after(0, lambda: self.show_analysis(result))
 
     def show_analysis(self, result):
         self.status.configure(text="● Screen Ready", text_color="#6EE7A8")
