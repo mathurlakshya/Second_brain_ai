@@ -478,11 +478,11 @@ Question:
 # SEMANTIC MEMORY CHAT
 # ============================================================
 
-def ask_memory_chat(question):
+def ask_memory_chat(question, user_id):
 
     from database.semantic_search import semantic_search
 
-    memories = semantic_search(question)
+    memories = semantic_search(question, user_id=user_id)
 
     memory_text = ""
 
