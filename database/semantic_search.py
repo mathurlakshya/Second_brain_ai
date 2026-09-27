@@ -17,18 +17,14 @@ def cosine_similarity(a, b):
     return float(np.dot(a, b) / denominator)
 
 
-def semantic_search(question, user_id=None, limit=5):
+def semantic_search(question, user_id, limit=5):
+    if user_id is None:
+        raise ValueError("user_id is required for semantic memory search")
+
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    if user_id is None:
-        cursor.execute("""
-            SELECT id, timestamp, app_name, window_title,
-                   summary, ocr_text, embedding, thread_id
-            FROM memories
-        """)
-        rows = cursor.fetchall()
-    else:
+    if user_id is not None:
         cursor.execute("""
             SELECT id, timestamp, app_name, window_title,
                    summary, ocr_text, embedding, thread_id
