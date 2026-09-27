@@ -5,11 +5,11 @@ import os
 import secrets
 import sqlite3
 from datetime import datetime
+from config import DB_PATH, APP_DATA_DIR
 
-DB_NAME = "second_brain.db"
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SESSION_FILE = os.path.join(BASE_DIR, "session.json")
-TOKEN_FILE = os.path.join(BASE_DIR, "device_token.json")
+DB_NAME = DB_PATH
+SESSION_FILE = os.path.join(APP_DATA_DIR, "session.json")
+TOKEN_FILE = os.path.join(APP_DATA_DIR, "device_token.json")
 
 
 def save_session(user):
