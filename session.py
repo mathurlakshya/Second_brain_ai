@@ -9,11 +9,10 @@ from datetime import datetime
 DB_NAME = "second_brain.db"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SESSION_FILE = os.path.join(BASE_DIR, "session.json")
-_TOKEN_FILE = os.path.join(BASE_DIR, "device_token.json")
+TOKEN_FILE = os.path.join(BASE_DIR, "device_token.json")
 
 
 def save_session(user):
-    """Persist only non-secret session metadata."""
     with open(SESSION_FILE, "w", encoding="utf-8") as f:
         json.dump({"id": user["id"], "username": user["username"]}, f)
 
@@ -41,20 +40,16 @@ def _hash_token(token):
 
 
 def _protect_secret(value):
-    """Protect a device token with Windows DPAPI when available."""
+    """Use Windows DPAPI for the trusted-device credential."""
     try:
         import win32crypt
         protected = win32crypt.CryptProtectData(
             value.encode("utf-8"),
             "Second Brain AI device token",
-            None,
-            None,
-            None,
-            0,
+            None, None, None, 0,
         )[1]
         return {"format": "dpapi", "data": base64.b64encode(protected).decode("ascii")}
     except Exception:
-        # Keep a compatibility fallback for non-Windows/dev environments.
         return {"format": "plain", "data": value}
 
 
@@ -98,35 +93,34 @@ def create_trusted_device(user_id):
     finally:
         conn.close()
 
-    with open(_TOKEN_FILE, "w", encoding="utf-8") as f:
+    with open(TOKEN_FILE, "w", encoding="utf-8") as f:
         json.dump({"user_id": user_id, "credential": _protect_secret(token)}, f)
 
     return token
 
 
 def load_trusted_device():
-    if not os.path.exists(_TOKEN_FILE):
+    if not os.path.exists(TOKEN_FILE):
         return None
-
     try:
-        with open(_TOKEN_FILE, "r", encoding="utf-8") as f:
+        with open(TOKEN_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        # New DPAPI format.
         token = _unprotect_secret(data.get("credential"))
         if token and data.get("user_id"):
             return {"user_id": data["user_id"], "token": token}
 
-        # Migrate the old plaintext {user_id, token} format immediately.
-        old_token = data.get("token")
-        if old_token and data.get("user_id"):
-            migrated = {"user_id": data["user_id"], "credential": _protect_secret(old_token)}
-            with open(_TOKEN_FILE, "w", encoding="utf-8") as f:
-                json.dump(migrated, f)
-            return {"user_id": data["user_id"], "token": old_token}
+        # Migrate the legacy plaintext token file.
+        legacy_token = data.get("token")
+        if legacy_token and data.get("user_id"):
+            with open(TOKEN_FILE, "w", encoding="utf-8") as f:
+                json.dump({
+                    "user_id": data["user_id"],
+                    "credential": _protect_secret(legacy_token),
+                }, f)
+            return {"user_id": data["user_id"], "token": legacy_token}
     except (json.JSONDecodeError, OSError, TypeError):
         pass
-
     return None
 
 
@@ -145,21 +139,17 @@ def validate_trusted_device():
             SELECT users.id, users.username
             FROM trusted_devices
             JOIN users ON trusted_devices.user_id = users.id
-            WHERE trusted_devices.user_id = ?
-              AND trusted_devices.token_hash = ?
+            WHERE trusted_devices.user_id = ? AND trusted_devices.token_hash = ?
         """, (user_id, token_hash))
         user = cursor.fetchone()
-
         if user is None:
             return None
 
         cursor.execute("""
-            UPDATE trusted_devices
-            SET last_used = ?
+            UPDATE trusted_devices SET last_used = ?
             WHERE user_id = ? AND token_hash = ?
         """, (datetime.now().isoformat(), user_id, token_hash))
         conn.commit()
-
         return {"id": user[0], "username": user[1]}
     finally:
         conn.close()
@@ -167,15 +157,13 @@ def validate_trusted_device():
 
 def clear_trusted_device():
     device = load_trusted_device()
-
     if device:
-        token_hash = _hash_token(device["token"])
         try:
             conn = sqlite3.connect(DB_NAME)
             cursor = conn.cursor()
             cursor.execute(
                 "DELETE FROM trusted_devices WHERE user_id = ? AND token_hash = ?",
-                (device["user_id"], token_hash),
+                (device["user_id"], _hash_token(device["token"])),
             )
             conn.commit()
             conn.close()
@@ -183,7 +171,7 @@ def clear_trusted_device():
             pass
 
     try:
-        if os.path.exists(_TOKEN_FILE):
-            os.remove(_TOKEN_FILE)
+        if os.path.exists(TOKEN_FILE):
+            os.remove(TOKEN_FILE)
     except OSError:
         pass
