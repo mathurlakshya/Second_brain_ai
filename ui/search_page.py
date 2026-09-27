@@ -124,11 +124,9 @@ class SearchPage(ctk.CTkFrame):
             if self.user_id is not None:
                 answer = ask_memory_thread_chat(question, self.user_id)
             else:
-                # Compatibility fallback for older callers.
-                from ai.gemini import ask_memory_chat
-                answer = ask_memory_chat(question)
+                answer = "Memory search requires an authenticated user."
         except Exception as e:
-            answer = f"I couldn't search your memories right now.\n\nError: {e}"
+            answer = "I couldn't search your memories right now. Please try again."
 
         self.after(0, lambda: self.show_answer(answer))
 
