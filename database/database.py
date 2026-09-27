@@ -3,8 +3,9 @@ import os
 import sqlite3
 
 from database.users import create_users_table
+from config import DB_PATH
 
-DB_NAME = "second_brain.db"
+DB_NAME = DB_PATH
 SCHEMA_VERSION = 2
 
 
