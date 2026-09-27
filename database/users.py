@@ -1,6 +1,7 @@
 import sqlite3
+from config import DB_PATH
 
-DB_NAME = "second_brain.db"
+DB_NAME = DB_PATH
 
 
 def hash_password(password):
