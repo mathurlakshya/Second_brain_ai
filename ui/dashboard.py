@@ -439,6 +439,13 @@ class Dashboard(ctk.CTkFrame):
             )
         )
 
+        self.after(
+            0,
+            lambda: self.last_updated.configure(
+                text=f"Updated : {timestamp}"
+            )
+        )
+
         self.after(0, self.add_activity, app, title, timestamp)
 
         if self.floating:
