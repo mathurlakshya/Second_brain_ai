@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import sqlite3
+from config import DB_PATH
 
 from ui.theme import (
     BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER,
@@ -51,7 +52,7 @@ class MemoryPage(ctk.CTkFrame):
         self.memory_box.delete("1.0", "end")
 
         try:
-            conn = sqlite3.connect("second_brain.db")
+            conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT timestamp, app_name, window_title
