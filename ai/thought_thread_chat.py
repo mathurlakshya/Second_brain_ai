@@ -10,8 +10,9 @@ def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread
     # semantic_search currently returns (score, timestamp, app, title, summary, ocr)
     # and the database lookup below finds the corresponding thread by timestamp/app/title.
     import sqlite3
+    from config import DB_PATH
 
-    conn = sqlite3.connect("second_brain.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     thread_ids = []
 
