@@ -1,11 +1,12 @@
 import sqlite3
+from config import DB_PATH
 
 
 class SearchEngine:
 
     def search(self, query):
 
-        conn = sqlite3.connect("second_brain.db")
+        conn = sqlite3.connect(DB_PATH)
 
         cursor = conn.cursor()
 
