@@ -46,7 +46,7 @@ Continuous recording does not send screenshots to Gemini.
 
    `python app.py`
 
-The application remains usable without a Gemini key.
+The application remains usable without a Gemini key. When installed, the app can start automatically with Windows using trusted-device login, and local memory recording starts automatically after login.
 
 ## Testing
 
@@ -54,7 +54,7 @@ Run:
 
 `python -m pytest -q`
 
-CI runs the test suite on Windows.
+CI runs the test suite on Windows. The Windows build workflow also validates that the PyInstaller executable is produced.
 
 ## Windows release
 
