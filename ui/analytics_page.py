@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import sqlite3
+from config import DB_PATH
 
 from ui.theme import BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER, TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT, ACCENT
 
@@ -44,7 +45,7 @@ class AnalyticsPage(ctk.CTkFrame):
 
     def load_data(self):
         try:
-            conn = sqlite3.connect("second_brain.db")
+            conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
             cursor.execute("SELECT COUNT(*) FROM memories")
             total = cursor.fetchone()[0]
