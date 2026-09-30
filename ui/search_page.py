@@ -2,6 +2,7 @@ import threading
 import customtkinter as ctk
 
 from ai.thought_thread_chat import ask_memory_thread_chat
+from database.semantic_search import semantic_search
 from ui.theme import (
     BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER,
     TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT,
@@ -121,12 +122,32 @@ class SearchPage(ctk.CTkFrame):
 
     def get_answer(self, question):
         try:
-            if self.user_id is not None:
-                answer = ask_memory_thread_chat(question, self.user_id)
-            else:
+            if self.user_id is None:
                 answer = "Memory search requires an authenticated user."
+            else:
+                answer = ask_memory_thread_chat(question, self.user_id)
         except Exception as e:
-            answer = "I couldn't search your memories right now. Please try again."
+            # Never leave the Search tab blank when the AI layer fails. The
+            # semantic index is local, so return its matches directly.
+            try:
+                hits = semantic_search(question, user_id=self.user_id, limit=8)
+                if hits:
+                    lines = ["I found these relevant memories locally:", ""]
+                    for score, timestamp, app, title, summary, ocr in hits:
+                        lines.extend([
+                            f"• {timestamp} — {app} — {title}",
+                            f"  Relevance: {score:.2f}",
+                            f"  {summary or ocr or 'No text summary available.'}",
+                            "",
+                        ])
+                    answer = "\\n".join(lines)
+                else:
+                    answer = "I couldn't find any matching recorded memories."
+            except Exception as search_error:
+                answer = (
+                    "I couldn't search your memories right now.\\n\\n"
+                    f"Search error: {type(search_error).__name__}"
+                )
 
         self.after(0, lambda: self.show_answer(answer))
 
