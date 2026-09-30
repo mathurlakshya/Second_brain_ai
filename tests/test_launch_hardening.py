@@ -74,3 +74,12 @@ def test_screenshot_setting_is_per_user(isolated_db):
     db.set_user_setting(1, True)
     assert db.get_user_setting(1) is True
     assert db.get_user_setting(2) is False
+
+
+def test_memory_search_returns_clear_result_when_no_matches(monkeypatch):
+    import ai.thought_thread_chat as chat
+
+    monkeypatch.setattr(chat, "semantic_search", lambda *args, **kwargs: [])
+    result = chat.ask_memory_thread_chat("something I never recorded", user_id=1)
+
+    assert result == "I couldn't find any matching recorded memories."
