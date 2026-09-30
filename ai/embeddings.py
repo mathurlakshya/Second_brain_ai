@@ -1,9 +1,15 @@
+from functools import lru_cache
+
 from sentence_transformers import SentenceTransformer
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
+
+@lru_cache(maxsize=1)
+def _get_model():
+    # Lazy loading keeps application startup lightweight.
+    return SentenceTransformer("all-MiniLM-L6-v2")
+
 
 def create_embedding(text):
-
-    vector = model.encode(text)
-
-    return vector.tolist()
+    if not text:
+        return []
+    return _get_model().encode(text).tolist()

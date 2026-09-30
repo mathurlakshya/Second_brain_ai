@@ -1,12 +1,14 @@
 import customtkinter as ctk
 import sqlite3
+from config import DB_PATH
 
 from ui.theme import BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER, TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT, ACCENT
 
 
 class AnalyticsPage(ctk.CTkFrame):
 
-    def __init__(self, parent):
+    def __init__(self, parent, user_id):
+        self.user_id = user_id
         super().__init__(parent, fg_color=BG)
         self.build_ui()
         self.load_data()
@@ -44,13 +46,13 @@ class AnalyticsPage(ctk.CTkFrame):
 
     def load_data(self):
         try:
-            conn = sqlite3.connect("second_brain.db")
+            conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            cursor.execute("SELECT COUNT(*) FROM memories")
+            cursor.execute("SELECT COUNT(*) FROM memories WHERE user_id = ?", (self.user_id,))
             total = cursor.fetchone()[0]
-            cursor.execute("SELECT COUNT(DISTINCT app_name) FROM memories")
+            cursor.execute("SELECT COUNT(DISTINCT app_name) FROM memories WHERE user_id = ?", (self.user_id,))
             apps = cursor.fetchone()[0]
-            cursor.execute("SELECT timestamp FROM memories ORDER BY id DESC LIMIT 1")
+            cursor.execute("SELECT timestamp FROM memories WHERE user_id = ? ORDER BY id DESC LIMIT 1", (self.user_id,))
             latest = cursor.fetchone()
             conn.close()
         except sqlite3.Error as e:

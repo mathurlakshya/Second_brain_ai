@@ -50,14 +50,9 @@ class Dashboard(ctk.CTkFrame):
         )
         subtitle.pack(anchor="w", pady=(3, 0))
 
-        # ---------- MAIN CANVAS ----------
         content = ctk.CTkFrame(self, fg_color="transparent")
         content.pack(fill="both", expand=True, padx=42, pady=(12, 28))
 
-        # LEFT: memory information rail.
-        # Use an explicit themed background instead of transparent here because
-        # CTkScrollableFrame owns an internal canvas/frame that can otherwise
-        # retain the dark default background in Light mode.
         self.left_panel = ctk.CTkScrollableFrame(
             content,
             width=300,
@@ -72,7 +67,6 @@ class Dashboard(ctk.CTkFrame):
             padx=(0, 42)
         )
 
-        # RIGHT: completely flat JARVIS workspace
         self.right_panel = ctk.CTkFrame(
             content,
             fg_color="transparent",
@@ -84,7 +78,6 @@ class Dashboard(ctk.CTkFrame):
             expand=True
         )
 
-        # ---------- LEFT RAIL ----------
         section = ctk.CTkLabel(
             self.left_panel,
             text="MEMORY",
@@ -192,7 +185,6 @@ class Dashboard(ctk.CTkFrame):
         self.timeline.insert("end", "Waiting for activity...")
         self.timeline.configure(state="disabled")
 
-        # ---------- JARVIS ----------
         jarvis_header = ctk.CTkFrame(
             self.right_panel,
             fg_color="transparent"
@@ -264,6 +256,29 @@ class Dashboard(ctk.CTkFrame):
             text_color=TEXT
         )
         value_label.pack(side="right")
+
+    def start_recording_on_launch(self):
+        """Start local memory recording automatically after a successful login."""
+        try:
+            if not self.recorder.running:
+                self.start_memory_recording()
+        except Exception as e:
+            print(f"⚠️ Automatic recording start failed: {e}")
+
+    def shutdown(self):
+        """Stop background recording and remove the floating window."""
+        try:
+            if self.recorder.running:
+                self.recorder.stop()
+        except Exception as e:
+            print(f"⚠️ Recorder shutdown failed: {e}")
+
+        self.recording_session = False
+
+        try:
+            self.destroy_floating_recorder()
+        except Exception as e:
+            print(f"⚠️ Floating recorder shutdown failed: {e}")
 
     def toggle_memory(self):
         if self.recorder.running:
@@ -447,7 +462,9 @@ class Dashboard(ctk.CTkFrame):
         self.timeline.configure(state="normal")
         self.timeline.insert(
             "1.0",
-            f"[{timestamp[-8:]}]\n{app}\n{title}\n\n"
+            f"[{timestamp[-8:]}]\n"
+            f"{app}\n"
+            f"{title}\n\n"
         )
         self.timeline.configure(state="disabled")
 

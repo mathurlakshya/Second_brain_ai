@@ -1,4 +1,4 @@
-from ai.gemini import generate_content
+from ai.gemini import generate_content, is_gemini_available
 from database.semantic_search import semantic_search
 from memory.thought_threads import get_thread_memories
 
@@ -10,8 +10,9 @@ def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread
     # semantic_search currently returns (score, timestamp, app, title, summary, ocr)
     # and the database lookup below finds the corresponding thread by timestamp/app/title.
     import sqlite3
+    from config import DB_PATH
 
-    conn = sqlite3.connect("second_brain.db")
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     thread_ids = []
 
@@ -57,6 +58,23 @@ def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread
             )
 
     memory_context = "\n".join(context_parts)
+
+    if not hits:
+        return "I couldn't find any matching recorded memories."
+
+    # Search remains useful even when Gemini is not configured. The semantic
+    # retrieval above is entirely local, so expose those results instead of
+    # failing the whole Search tab.
+    if not is_gemini_available():
+        lines = ["I found these relevant memories:", ""]
+        for score, timestamp, app, title, summary, ocr in hits:
+            lines.extend([
+                f"• {timestamp} — {app} — {title}",
+                f"  Relevance: {score:.2f}",
+                f"  {summary or ocr or 'No text summary available.'}",
+                "",
+            ])
+        return "\\n".join(lines)
 
     prompt = f"""
 You are JARVIS, the user's Second Brain.

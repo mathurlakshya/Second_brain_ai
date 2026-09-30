@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import sqlite3
+from config import DB_PATH
 
 from ui.theme import (
     BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER,
@@ -10,7 +11,8 @@ from ui.theme import (
 
 class MemoryPage(ctk.CTkFrame):
 
-    def __init__(self, parent):
+    def __init__(self, parent, user_id):
+        self.user_id = user_id
         super().__init__(parent, fg_color=BG)
         self.build_ui()
         self.load_memories()
@@ -51,15 +53,9 @@ class MemoryPage(ctk.CTkFrame):
         self.memory_box.delete("1.0", "end")
 
         try:
-            conn = sqlite3.connect("second_brain.db")
+            conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            cursor.execute("""
-                SELECT timestamp, app_name, window_title
-                FROM memories
-                ORDER BY id DESC
-                LIMIT 100
-            """)
-            rows = cursor.fetchall()
+            rows = cursor.execute("""SELECT timestamp, app_name, window_title FROM memories WHERE user_id = ? ORDER BY id DESC LIMIT 100""", (self.user_id,)).fetchall()
             conn.close()
         except sqlite3.Error as e:
             self.memory_box.insert("end", f"Could not load memories.\n\n{e}")

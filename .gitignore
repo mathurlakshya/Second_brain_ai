@@ -73,3 +73,9 @@ Thumbs.db
 
 *.tmp
 *.temp
+
+# Build artifacts
+build/
+dist/
+installer/
+*.spec

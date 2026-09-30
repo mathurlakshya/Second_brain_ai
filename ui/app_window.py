@@ -41,11 +41,11 @@ class AppWindow(ctk.CTkFrame):
 
         self.pages = {
             "dashboard": Dashboard(self.container, self.user_id, self.username),
-            "memory": MemoryPage(self.container),
+            "memory": MemoryPage(self.container, self.user_id),
             "thought_threads": ThoughtThreadsPage(self.container, self.user_id),
             "live_context": LiveContext(self.container),
             "search": SearchPage(self.container, self.user_id),
-            "analytics": AnalyticsPage(self.container),
+            "analytics": AnalyticsPage(self.container, self.user_id),
             "settings": SettingsPage(self.container, user_id=self.user_id),
         }
 

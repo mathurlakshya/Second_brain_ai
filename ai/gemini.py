@@ -2,7 +2,7 @@ from PIL import Image
 
 from config import GEMINI_API_KEY
 from ai.prompts import SYSTEM_PROMPT
-from database.query import get_recent_memories
+from database.database import get_recent_memories
 
 import time
 
@@ -197,7 +197,7 @@ User:
 
         return (
             "Sorry, I couldn't connect to Gemini right now.\n\n"
-            f"Error: {e}"
+            "Please try again in a moment."
         )
 
 
@@ -271,7 +271,7 @@ This analysis will later be used to answer user questions.
             f"❌ Vision analysis failed: {e}"
         )
 
-        return f"Vision Error: {e}"
+        return "I could not analyze the screen right now."
 
 
 # ============================================================
@@ -331,7 +331,7 @@ Keep it concise.
             f"❌ Screen summary failed: {e}"
         )
 
-        return f"Summary Error: {e}"
+        return "I could not summarize the screen right now."
 
 
 # ============================================================
@@ -401,7 +401,7 @@ Be detailed and educational.
 
         return (
             "I couldn't analyze the current screen right now.\n\n"
-            f"Error: {e}"
+            "Please try again in a moment."
         )
 
 
@@ -409,9 +409,9 @@ Be detailed and educational.
 # ASK ABOUT RECENT MEMORIES
 # ============================================================
 
-def ask_memory(question):
+def ask_memory(question, user_id):
 
-    memories = get_recent_memories()
+    memories = get_recent_memories(user_id=user_id, limit=50)
 
     memory_text = ""
 
@@ -478,11 +478,11 @@ Question:
 # SEMANTIC MEMORY CHAT
 # ============================================================
 
-def ask_memory_chat(question):
+def ask_memory_chat(question, user_id):
 
     from database.semantic_search import semantic_search
 
-    memories = semantic_search(question)
+    memories = semantic_search(question, user_id=user_id)
 
     memory_text = ""
 
