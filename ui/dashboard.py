@@ -462,11 +462,9 @@ class Dashboard(ctk.CTkFrame):
         self.timeline.configure(state="normal")
         self.timeline.insert(
             "1.0",
-            f"[{timestamp[-8:]}]
-{app}
-{title}
-
-"
+            f"[{timestamp[-8:]}]\n"
+            f"{app}\n"
+            f"{title}\n\n"
         )
         self.timeline.configure(state="disabled")
 
@@ -481,9 +479,7 @@ class Dashboard(ctk.CTkFrame):
 
     def add_system_message(self, message):
         self.timeline.configure(state="normal")
-        self.timeline.insert("1.0", f"🧠 {message}
-
-")
+        self.timeline.insert("1.0", f"🧠 {message}\n\n")
         self.timeline.configure(state="disabled")
 
     def refresh_statistics(self):
