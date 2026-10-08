@@ -168,12 +168,10 @@ class SearchPage(ctk.CTkFrame):
         self.chat_box.tag_config(
             "user",
             foreground=ACCENT[0] if ctk.get_appearance_mode().lower() == "light" else ACCENT[1],
-            font=("Segoe UI", 12, "bold"),
         )
         self.chat_box.tag_config(
             "jarvis",
             foreground=TEXT[0] if ctk.get_appearance_mode().lower() == "light" else TEXT[1],
-            font=("Segoe UI", 12, "bold"),
         )
         self.chat_box.configure(state="disabled")
 
