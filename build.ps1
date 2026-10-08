@@ -8,6 +8,17 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 python -m pip install pyinstaller
 
+# Validate the ML packages before PyInstaller touches them. A stale/corrupted
+# transformers install can otherwise be copied into the executable and fail at
+# runtime with "source code string cannot contain null bytes".
+try {
+    python -c "import transformers; import sentence_transformers; print('ML package validation OK')"
+} catch {
+    Write-Host "⚠️ Repairing transformers/sentence-transformers installation..."
+    python -m pip install --force-reinstall --no-cache-dir --no-deps transformers sentence-transformers
+    python -c "import transformers; import sentence_transformers; print('ML package repair OK')"
+}
+
 if (Test-Path "build") { Remove-Item -Recurse -Force "build" }
 if (Test-Path "dist") { Remove-Item -Recurse -Force "dist" }
 
