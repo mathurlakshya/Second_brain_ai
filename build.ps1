@@ -14,8 +14,15 @@ python -m pip install pyinstaller
 python -c "import transformers; import sentence_transformers; print('ML package validation OK')"
 if ($LASTEXITCODE -ne 0) {
     Write-Host "⚠️ Repairing transformers/sentence-transformers installation..."
-    python -m pip install --force-reinstall --no-cache-dir --no-deps transformers sentence-transformers
-    if ($LASTEXITCODE -ne 0) { throw "Could not repair transformers/sentence-transformers." }
+
+    # If pip's package metadata is corrupted, a normal --force-reinstall can fail
+    # while trying to read/uninstall the broken RECORD file. Remove only the two
+    # affected package directories and their dist-info metadata, then reinstall.
+    python -c "import sysconfig, pathlib, shutil; s=pathlib.Path(sysconfig.get_paths()['purelib']); names=('transformers','sentence_transformers'); [shutil.rmtree(p, ignore_errors=True) for n in names for p in list(s.glob(n)) + list(s.glob(n.replace('_','-') + '-*.dist-info')) + list(s.glob(n + '-*.dist-info'))]"
+    if ($LASTEXITCODE -ne 0) { throw "Could not clean the corrupted ML package installation." }
+
+    python -m pip install --no-cache-dir --no-deps transformers sentence-transformers
+    if ($LASTEXITCODE -ne 0) { throw "Could not reinstall transformers/sentence-transformers." }
 
     python -c "import transformers; import sentence_transformers; print('ML package repair OK')"
     if ($LASTEXITCODE -ne 0) { throw "ML package validation still fails after repair." }
