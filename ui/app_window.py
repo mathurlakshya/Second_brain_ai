@@ -59,5 +59,21 @@ class AppWindow(ctk.CTkFrame):
         if page:
             page.tkraise()
 
+    def start_recording_on_launch(self):
+        """Start the dashboard recorder after trusted-device login."""
+        dashboard = self.pages.get("dashboard")
+        if dashboard is None:
+            return False
+        return dashboard.start_memory_recording()
+
+    def shutdown(self):
+        """Stop active recording and clean up the authenticated window."""
+        dashboard = self.pages.get("dashboard")
+        if dashboard is not None:
+            try:
+                dashboard.stop_memory_recording()
+            except Exception as exc:
+                print(f"⚠️ Recorder shutdown failed: {exc}")
+
     def logout(self):
         self.master.logout()
