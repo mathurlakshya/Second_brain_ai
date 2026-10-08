@@ -16,16 +16,16 @@ ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 
 [Files]
-Source: "distSecondBrainAI*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\\SecondBrainAI\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Registry]
 ; Launch the app for the current Windows user at every sign-in.
 ; The application then uses trusted-device login and starts recording automatically.
-Root: HKCU; Subkey: "SoftwareMicrosoftWindowsCurrentVersionRun"; ValueType: string; ValueName: "SecondBrainAI"; ValueData: """{app}{#MyAppExeName}"""; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\\Microsoft\\Windows\\CurrentVersion\\Run"; ValueType: string; ValueName: "SecondBrainAI"; ValueData: """{app}\\{#MyAppExeName}"""; Flags: uninsdeletevalue
 
 [Icons]
-Name: "{group}Second Brain AI"; Filename: "{app}{#MyAppExeName}"
-Name: "{commondesktop}Second Brain AI"; Filename: "{app}{#MyAppExeName}"
+Name: "{group}\\Second Brain AI"; Filename: "{app}\\{#MyAppExeName}"
+Name: "{commondesktop}\\Second Brain AI"; Filename: "{app}\\{#MyAppExeName}"
 
 [Run]
-Filename: "{app}{#MyAppExeName}"; Description: "Launch Second Brain AI"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\\{#MyAppExeName}"; Description: "Launch Second Brain AI"; Flags: nowait postinstall skipifsilent
