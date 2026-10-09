@@ -297,9 +297,9 @@ class MemoryRecorder:
                     print("♿ Accessibility text extracted.")
                 if accessibility_text and visual_ocr_text:
                     ocr_text = (
-                        "ACCESSIBILITY TEXT:\\n"
+                        "ACCESSIBILITY TEXT:\n"
                         + accessibility_text
-                        + "\\n\\nVISUAL OCR TEXT:\\n"
+                        + "\n\nVISUAL OCR TEXT:\n"
                         + visual_ocr_text
                     )
                 else:
