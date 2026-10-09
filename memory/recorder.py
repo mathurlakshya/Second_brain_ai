@@ -261,17 +261,9 @@ class MemoryRecorder:
                     time.sleep(max(0, CAPTURE_PROBE_SECONDS - elapsed))
                     continue
 
-                if (
-                    self.last_meaningful_capture
-                    and time.time() - self.last_meaningful_capture
-                    < MEMORY_INTERVAL_SECONDS
-                ):
-                    print("⏱️ Screen changed too soon; delaying memory creation.")
-                    self._discard_screenshot(screenshot_path)
-
-                    elapsed = time.time() - cycle_start
-                    time.sleep(max(0, CAPTURE_PROBE_SECONDS - elapsed))
-                    continue
+                # Every detected screen change is meaningful enough to inspect.
+                # Do not skip OCR just because the previous memory was recent.
+                # The 2-second probe interval already limits capture frequency.
 
                 now = datetime.datetime.now().strftime(
                     "%Y-%m-%d %H:%M:%S"
@@ -294,12 +286,24 @@ class MemoryRecorder:
 
                 accessibility_text = extract_accessibility_text(hwnd)
 
+                # Run visual OCR for every changed screenshot, even when UI
+                # Automation returns text. Browsers can expose incomplete
+                # accessibility trees, while OCR captures visible conversation
+                # content. Keep both sources in the stored searchable text.
+                print("🔎 Screen changed; running OCR...")
+                visual_ocr_text = extract_text(screenshot_path)
+
                 if accessibility_text:
                     print("♿ Accessibility text extracted.")
-                    ocr_text = accessibility_text
+                if accessibility_text and visual_ocr_text:
+                    ocr_text = (
+                        "ACCESSIBILITY TEXT:\\n"
+                        + accessibility_text
+                        + "\\n\\nVISUAL OCR TEXT:\\n"
+                        + visual_ocr_text
+                    )
                 else:
-                    print("🔎 Accessibility unavailable; running OCR...")
-                    ocr_text = extract_text(screenshot_path)
+                    ocr_text = accessibility_text or visual_ocr_text
 
                 # --------------------------------------------------
                 # 4. LOCAL MEMORY FIRST
