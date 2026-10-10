@@ -61,7 +61,7 @@ def format_api_error(error):
 
     if "429" in normalized or "resource_exhausted" in normalized or "quota exceeded" in normalized:
         # Use a retry delay if the service provides one, without exposing vendor details.
-        retry_match = re.search(r"""retryDelay['"\\s:]+([0-9]+(?:\\.[0-9]+)?)s""", error_text, re.IGNORECASE)
+        retry_match = re.search(r"""retryDelay['"\s:]+([0-9]+(?:\.[0-9]+)?)s""", error_text, re.IGNORECASE)
         if retry_match:
             seconds = max(0, int(float(retry_match.group(1))))
             reset_at = datetime.now().astimezone() + timedelta(seconds=seconds)
