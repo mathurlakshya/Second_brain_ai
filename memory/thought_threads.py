@@ -13,8 +13,9 @@ import sqlite3
 from datetime import datetime
 
 import numpy as np
+from config import DB_PATH
 
-DB_NAME = "second_brain.db"
+DB_NAME = DB_PATH
 THREAD_WINDOW_MINUTES = 45
 THREAD_SIMILARITY = 0.62
 MIN_THREAD_MEMORIES = 5

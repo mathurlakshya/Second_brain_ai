@@ -41,11 +41,11 @@ class AppWindow(ctk.CTkFrame):
 
         self.pages = {
             "dashboard": Dashboard(self.container, self.user_id, self.username),
-            "memory": MemoryPage(self.container),
+            "memory": MemoryPage(self.container, self.user_id),
             "thought_threads": ThoughtThreadsPage(self.container, self.user_id),
             "live_context": LiveContext(self.container),
             "search": SearchPage(self.container, self.user_id),
-            "analytics": AnalyticsPage(self.container),
+            "analytics": AnalyticsPage(self.container, self.user_id),
             "settings": SettingsPage(self.container, user_id=self.user_id),
         }
 
@@ -58,6 +58,22 @@ class AppWindow(ctk.CTkFrame):
         page = self.pages.get(page_name)
         if page:
             page.tkraise()
+
+    def start_recording_on_launch(self):
+        """Start the dashboard recorder after trusted-device login."""
+        dashboard = self.pages.get("dashboard")
+        if dashboard is None:
+            return False
+        return dashboard.start_memory_recording()
+
+    def shutdown(self):
+        """Stop active recording and clean up the authenticated window."""
+        dashboard = self.pages.get("dashboard")
+        if dashboard is not None:
+            try:
+                dashboard.stop_memory_recording()
+            except Exception as exc:
+                print(f"⚠️ Recorder shutdown failed: {exc}")
 
     def logout(self):
         self.master.logout()

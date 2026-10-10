@@ -1,8 +1,9 @@
 import sqlite3
 import bcrypt
 from datetime import datetime
+from config import DB_PATH
 
-DB_NAME = "second_brain.db"
+DB_NAME = DB_PATH
 
 
 def create_user(username, email, password):
