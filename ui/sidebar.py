@@ -34,9 +34,8 @@ class Sidebar(ctk.CTkFrame):
         title.pack(pady=(30, 25))
 
         self.create_button("🏠 Dashboard", "dashboard")
-        self.create_button("🧠 Memory", "memory")
+        self.create_button("🧠 Memory Library", "memory")
         self.create_button("👁 Live Context", "live_context")
-        self.create_button("🔍 Search", "search")
         self.create_button("📜 Analytics", "analytics")
         self.create_button("⚙️ Settings", "settings")
 
