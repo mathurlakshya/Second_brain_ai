@@ -51,6 +51,38 @@ MEMORY_CHAT_HISTORY = []
 # GEMINI REQUEST HELPER
 # ============================================================
 
+def format_api_error(error):
+    """Turn provider quota/rate-limit errors into clear, actionable user messages."""
+    import re
+    from datetime import datetime, timedelta
+
+    error_text = str(error or "")
+    normalized = error_text.lower()
+
+    if "429" in normalized or "resource_exhausted" in normalized or "quota exceeded" in normalized:
+        # Gemini commonly supplies RetryInfo as retryDelay: "57033s".
+        retry_match = re.search(r"""retryDelay['"\s:]+([0-9]+(?:\.[0-9]+)?)s""", error_text, re.IGNORECASE)
+        reset_text = ""
+        if retry_match:
+            seconds = max(0, int(float(retry_match.group(1))))
+            reset_at = datetime.now().astimezone() + timedelta(seconds=seconds)
+            reset_text = (
+                f" The reported retry time is about {reset_at.strftime('%I:%M %p %Z')} "
+                f"(in approximately {seconds // 3600}h {(seconds % 3600) // 60}m)."
+            )
+
+        return (
+            "You've reached the current Gemini API request limit for this project/model. "
+            "This is a Google API quota limit, not a problem with your saved memories."
+            + reset_text
+            + "\n\nYour recorded memories are still available. JARVIS can show matching "
+              "memories locally, but AI-generated answers may be unavailable until the quota resets. "
+              "Check https://ai.dev/rate-limit or your Google AI Studio billing/quota settings for details."
+        )
+
+    return "Sorry, JARVIS couldn't reach the AI service right now. Please try again later."
+
+
 def generate_content(contents, thinking_level="low", max_retries=2):
 
     models_to_try = [
@@ -93,6 +125,15 @@ def generate_content(contents, thinking_level="low", max_retries=2):
 
                 last_error = e
                 error_text = str(e)
+                normalized_error = error_text.lower()
+
+                # Quota exhaustion will not improve by retrying or switching models.
+                if (
+                    "429" in error_text
+                    or "resource_exhausted" in normalized_error
+                    or "quota exceeded" in normalized_error
+                ):
+                    raise
 
                 if (
                     "503" in error_text
@@ -195,10 +236,7 @@ User:
             f"{type(e).__name__}: {e}"
         )
 
-        return (
-            "Sorry, I couldn't connect to Gemini right now.\n\n"
-            "Please try again in a moment."
-        )
+        return format_api_error(e)
 
 
 # ============================================================
@@ -271,7 +309,7 @@ This analysis will later be used to answer user questions.
             f"❌ Vision analysis failed: {e}"
         )
 
-        return "I could not analyze the screen right now."
+        return format_api_error(e)
 
 
 # ============================================================
@@ -331,7 +369,7 @@ Keep it concise.
             f"❌ Screen summary failed: {e}"
         )
 
-        return "I could not summarize the screen right now."
+        return format_api_error(e)
 
 
 # ============================================================
@@ -399,10 +437,7 @@ Be detailed and educational.
             f"❌ Current screen question failed: {e}"
         )
 
-        return (
-            "I couldn't analyze the current screen right now.\n\n"
-            "Please try again in a moment."
-        )
+        return format_api_error(e)
 
 
 # ============================================================
@@ -468,10 +503,7 @@ Question:
             f"❌ Memory question failed: {e}"
         )
 
-        return (
-            "I couldn't search your memories right now.\n\n"
-            f"Error: {e}"
-        )
+        return format_api_error(e)
 
 
 # ============================================================
@@ -614,7 +646,4 @@ Give a detailed, easy-to-read answer.
             f"❌ Memory chat failed: {e}"
         )
 
-        return (
-            "I couldn't answer from your memories right now.\n\n"
-            f"Error: {e}"
-        )
+        return format_api_error(e)
