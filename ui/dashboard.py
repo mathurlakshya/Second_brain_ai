@@ -230,7 +230,7 @@ class Dashboard(ctk.CTkFrame):
             fg_color=BORDER
         ).pack(fill="x", pady=(20, 12))
 
-        self.chat = ChatPanel(self.right_panel)
+        self.chat = ChatPanel(self.right_panel, user_id=self.user_id)
         self.chat.pack(fill="both", expand=True)
 
     def create_stat_row(self, title, value):
