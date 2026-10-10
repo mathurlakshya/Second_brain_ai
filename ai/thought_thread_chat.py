@@ -167,5 +167,10 @@ User Question:
 
 Give a clear, useful answer grounded only in the recorded memories.
 """
-    response = generate_content(prompt, thinking_level="medium")
-    return response.text or ""
+    try:
+        response = generate_content(prompt, thinking_level="medium")
+        return response.text or ""
+    except Exception as exc:
+        # Keep the desktop chat alive if Gemini quota or network limits are hit.
+        from ai.gemini import format_api_error
+        return format_api_error(exc)
