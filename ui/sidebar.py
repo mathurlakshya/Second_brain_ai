@@ -95,7 +95,24 @@ class Sidebar(ctk.CTkFrame):
             text_color=TEXT_BRIGHT,
             anchor="w"
         )
-        self.account_button.pack(fill="x", padx=15)
+        self.account_button.pack(fill="x", padx=15, pady=(0, 8))
+
+        # Keep Log out visible in the sidebar so users don't have to discover
+        # a popup menu to sign out.
+        self.logout_button = ctk.CTkButton(
+            self.bottom_frame,
+            text="↪  Log out",
+            command=self.logout,
+            height=38,
+            corner_radius=10,
+            fg_color="transparent",
+            hover_color=SURFACE_ALT,
+            border_width=1,
+            border_color=BORDER,
+            text_color=TEXT_BRIGHT,
+            anchor="w"
+        )
+        self.logout_button.pack(fill="x", padx=15)
 
         self.refresh_thought_threads()
 
