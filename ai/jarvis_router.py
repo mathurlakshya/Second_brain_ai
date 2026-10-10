@@ -1,41 +1,37 @@
-"""Route dashboard JARVIS messages to memory recall or general AI chat."""
-import re
+"""Route every dashboard JARVIS message through memory-first retrieval."""
 
 
-_MEMORY_CUES = (
-    "what was i", "what did i", "what have i", "where was i", "when did i",
-    "what was i doing", "what was i working", "my last", "my previous",
-    "my recent", "yesterday", "last time", "earlier", "before", "resume",
-    "continue where", "remember when", "did i work", "was i working",
-    "what was discussed", "conversation with chatgpt", "my activity",
-    "my history", "my work", "my memories", "recorded", "typeracing",
-    "what website", "which website", "what app", "what application",
+_NO_MEMORY_MARKERS = (
+    "i couldn't find any matching recorded memories",
+    "i couldn't find enough information in your recorded memories",
+    "i could not find enough information in your recorded memories",
+    "i couldn't find a matching recorded memory",
 )
 
 
-def _needs_memory(question):
-    normalized = re.sub(r"\s+", " ", question.lower()).strip()
-    if any(cue in normalized for cue in _MEMORY_CUES):
-        return True
-    # First-person references often imply personal-history recall.
-    return bool(re.search(r"\b(my|i was|i did|i used|i opened|i visited)\b", normalized))
+def _memory_answer_is_insufficient(answer):
+    """Recognize retrieval misses so they can become ordinary AI questions."""
+    normalized = (answer or "").strip().lower()
+    return not normalized or any(marker in normalized for marker in _NO_MEMORY_MARKERS)
 
 
 def ask_jarvis_unified(question, user_id):
-    """One JARVIS interface for personal memory recall and general questions."""
-    if _needs_memory(question):
-        from ai.thought_thread_chat import ask_memory_thread_chat
-        memory_answer = ask_memory_thread_chat(question, user_id)
-        # Retrieval backend returns this exact response when no matching memory exists.
-        if memory_answer and "couldn't find any matching recorded memories" not in memory_answer.lower():
-            return memory_answer
-        # Don't fabricate recall; let the model answer generally but disclose no history was found.
-        from ai.gemini import ask_jarvis
-        general = ask_jarvis(question)
-        return (
-            "I couldn't find a matching recorded memory for that question. "
-            "Here's what I can offer without a confirmed memory:\n\n" + general
-        )
+    """Search the user's memories first; use general AI only when they don't answer."""
+    from ai.thought_thread_chat import ask_memory_thread_chat
 
+    memory_answer = ask_memory_thread_chat(question, user_id)
+    if not _memory_answer_is_insufficient(memory_answer):
+        return memory_answer
+
+    # No relevant recorded memory was found. Treat the message as a general
+    # question, while being transparent that this answer is not a recollection.
     from ai.gemini import ask_jarvis
-    return ask_jarvis(question)
+    general_answer = ask_jarvis(question)
+    if not general_answer:
+        general_answer = "I couldn't generate a response right now."
+
+    return (
+        "I checked your recorded memories but couldn't find enough relevant "
+        "information to answer from them. Answering this as a general question:\n\n"
+        + general_answer
+    )
