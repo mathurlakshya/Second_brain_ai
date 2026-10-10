@@ -127,3 +127,17 @@ def test_jarvis_uses_memory_answer_when_available(monkeypatch):
     assert router.ask_jarvis_unified("What was I doing?", user_id=7) == (
         "You were working in TypeRacing."
     )
+
+
+def test_gemini_quota_error_shows_reset_time():
+    from ai.gemini import format_api_error
+
+    message = format_api_error(
+        "429 RESOURCE_EXHAUSTED {'message': 'Quota exceeded', "
+        "'retryDelay': '57033s'}"
+    )
+
+    assert "reached the current Gemini API request limit" in message
+    assert "reported retry time" in message
+    assert "15h 50m" in message
+    assert "ai.dev/rate-limit" in message
