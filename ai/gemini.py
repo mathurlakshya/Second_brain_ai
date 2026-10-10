@@ -52,7 +52,7 @@ MEMORY_CHAT_HISTORY = []
 # ============================================================
 
 def format_api_error(error):
-    """Turn provider quota/rate-limit errors into clear, actionable user messages."""
+    """Return a short, provider-neutral message for user-facing chat errors."""
     import re
     from datetime import datetime, timedelta
 
@@ -60,27 +60,19 @@ def format_api_error(error):
     normalized = error_text.lower()
 
     if "429" in normalized or "resource_exhausted" in normalized or "quota exceeded" in normalized:
-        # Gemini commonly supplies RetryInfo as retryDelay: "57033s".
-        retry_match = re.search(r"""retryDelay['"\s:]+([0-9]+(?:\.[0-9]+)?)s""", error_text, re.IGNORECASE)
-        reset_text = ""
+        # Use a retry delay if the service provides one, without exposing vendor details.
+        retry_match = re.search(r"""retryDelay['"\\s:]+([0-9]+(?:\\.[0-9]+)?)s""", error_text, re.IGNORECASE)
         if retry_match:
             seconds = max(0, int(float(retry_match.group(1))))
             reset_at = datetime.now().astimezone() + timedelta(seconds=seconds)
-            reset_text = (
-                f" The reported retry time is about {reset_at.strftime('%I:%M %p %Z')} "
-                f"(in approximately {seconds // 3600}h {(seconds % 3600) // 60}m)."
+            retry_time = reset_at.strftime("%I:%M %p %Z").strip()
+            return (
+                "You've exceeded your usage limits. Please try again at "
+                f"{retry_time}."
             )
+        return "You've exceeded your usage limits. Please try again later."
 
-        return (
-            "You've reached the current Gemini API request limit for this project/model. "
-            "This is a Google API quota limit, not a problem with your saved memories."
-            + reset_text
-            + "\n\nYour recorded memories are still available. JARVIS can show matching "
-              "memories locally, but AI-generated answers may be unavailable until the quota resets. "
-              "Check https://ai.dev/rate-limit or your Google AI Studio billing/quota settings for details."
-        )
-
-    return "Sorry, JARVIS couldn't reach the AI service right now. Please try again later."
+    return "Sorry, I couldn't respond right now. Please try again later."
 
 
 def generate_content(contents, thinking_level="low", max_retries=2):
