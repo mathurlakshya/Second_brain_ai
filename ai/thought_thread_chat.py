@@ -50,6 +50,11 @@ def _find_keyword_memories(question, user_id, limit=8):
     conn = sqlite3.connect(DB_PATH)
     try:
         rows = conn.execute(sql, params).fetchall()
+    except sqlite3.OperationalError as exc:
+        # First-run setups and tests may not have initialized the memories table.
+        if "no such table" in str(exc).lower() or "no such column" in str(exc).lower():
+            return []
+        raise
     finally:
         conn.close()
 
