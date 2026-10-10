@@ -80,6 +80,8 @@ def test_memory_search_returns_clear_result_when_no_matches(monkeypatch):
     import ai.thought_thread_chat as chat
 
     monkeypatch.setattr(chat, "semantic_search", lambda *args, **kwargs: [])
+    # Isolate both retrieval sources: keyword search now scans the real memory DB.
+    monkeypatch.setattr(chat, "_find_keyword_memories", lambda *args, **kwargs: [])
     result = chat.ask_memory_thread_chat("something I never recorded", user_id=1)
 
     assert result == "I couldn't find any matching recorded memories."
