@@ -20,6 +20,13 @@ def ask_jarvis_unified(question, user_id):
     from ai.thought_thread_chat import ask_memory_thread_chat
 
     memory_answer = ask_memory_thread_chat(question, user_id)
+    # A quota/service error is not a retrieval miss; don't waste another API call.
+    if memory_answer and (
+        "reached the current gemini api request limit" in memory_answer.lower()
+        or "couldn't reach the ai service" in memory_answer.lower()
+    ):
+        return memory_answer
+
     if not _memory_answer_is_insufficient(memory_answer):
         return memory_answer
 
