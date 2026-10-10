@@ -129,7 +129,7 @@ def test_jarvis_uses_memory_answer_when_available(monkeypatch):
     )
 
 
-def test_gemini_quota_error_shows_reset_time():
+def test_quota_error_shows_simple_retry_time_without_provider_details():
     from ai.gemini import format_api_error
 
     message = format_api_error(
@@ -137,7 +137,17 @@ def test_gemini_quota_error_shows_reset_time():
         "'retryDelay': '57033s'}"
     )
 
-    assert "reached the current Gemini API request limit" in message
-    assert "reported retry time" in message
-    assert "15h 50m" in message
-    assert "ai.dev/rate-limit" in message
+    assert "You've exceeded your usage limits. Please try again at" in message
+    assert "Gemini" not in message
+    assert "API" not in message
+    assert "ai.dev" not in message
+    assert "15h 50m" not in message
+
+
+def test_quota_error_without_retry_delay_is_still_simple():
+    from ai.gemini import format_api_error
+
+    message = format_api_error("429 RESOURCE_EXHAUSTED Quota exceeded")
+
+    assert message == "You've exceeded your usage limits. Please try again later."
+    assert "Gemini" not in message
