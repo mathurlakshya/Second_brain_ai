@@ -22,7 +22,12 @@ class SettingsPage(ctk.CTkFrame):
         self.build_ui()
 
     def build_ui(self):
-        header = ctk.CTkFrame(self, fg_color="transparent")
+        # A scrollable settings surface keeps About and other lower sections
+        # accessible on shorter windows and high-DPI displays.
+        content = ctk.CTkScrollableFrame(self, fg_color=BG, corner_radius=0)
+        content.pack(fill="both", expand=True)
+
+        header = ctk.CTkFrame(content, fg_color="transparent")
         header.pack(fill="x", padx=42, pady=(30, 8))
         ctk.CTkLabel(header, text="Settings", font=("Segoe UI", 30, "bold"), text_color=TEXT).pack(anchor="w")
         ctk.CTkLabel(
@@ -32,9 +37,9 @@ class SettingsPage(ctk.CTkFrame):
             text_color=TEXT_MUTED,
         ).pack(anchor="w", pady=(3, 0))
 
-        ctk.CTkFrame(self, height=1, fg_color=BORDER).pack(fill="x", padx=42, pady=(20, 14))
+        ctk.CTkFrame(content, height=1, fg_color=BORDER).pack(fill="x", padx=42, pady=(20, 14))
 
-        privacy = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=14)
+        privacy = ctk.CTkFrame(content, fg_color=SURFACE, corner_radius=14)
         privacy.pack(fill="x", padx=42, pady=(0, 14))
         ctk.CTkLabel(privacy, text="PRIVACY", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(
             anchor="w", padx=22, pady=(20, 8)
@@ -60,7 +65,7 @@ class SettingsPage(ctk.CTkFrame):
             justify="left",
         ).pack(anchor="w", padx=22, pady=(0, 18))
 
-        data = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=14)
+        data = ctk.CTkFrame(content, fg_color=SURFACE, corner_radius=14)
         data.pack(fill="x", padx=42, pady=(0, 14))
         ctk.CTkLabel(data, text="YOUR DATA", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(
             anchor="w", padx=22, pady=(20, 8)
@@ -92,7 +97,7 @@ class SettingsPage(ctk.CTkFrame):
             text_color="#FFFFFF",
         ).pack(side="left")
 
-        appearance_panel = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=14)
+        appearance_panel = ctk.CTkFrame(content, fg_color=SURFACE, corner_radius=14)
         appearance_panel.pack(fill="x", padx=42, pady=(0, 14))
         ctk.CTkLabel(appearance_panel, text="APPEARANCE", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(
             anchor="w", padx=22, pady=(20, 8)
@@ -111,21 +116,21 @@ class SettingsPage(ctk.CTkFrame):
         self.appearance.set(ctk.get_appearance_mode())
         self.appearance.pack(anchor="w", padx=22, pady=(0, 20))
 
-        about_panel = ctk.CTkFrame(self, fg_color=SURFACE, corner_radius=14)
-        about_panel.pack(fill="both", expand=True, padx=42, pady=(0, 30))
+        about_panel = ctk.CTkFrame(content, fg_color=SURFACE, corner_radius=14)
+        about_panel.pack(fill="x", expand=False, padx=42, pady=(0, 30))
         ctk.CTkLabel(about_panel, text="ABOUT SECOND BRAIN", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(
             anchor="w", padx=22, pady=(20, 8)
         )
         about = ctk.CTkTextbox(
             about_panel,
-            height=150,
+            height=180,
             fg_color="transparent",
             border_width=0,
             text_color=TEXT_SOFT,
             font=("Segoe UI", 12),
             wrap="word",
         )
-        about.pack(fill="both", expand=True, padx=22, pady=(0, 20))
+        about.pack(fill="x", expand=False, padx=22, pady=(0, 20))
         about.insert(
             "end",
             "Second Brain AI\n\n"
