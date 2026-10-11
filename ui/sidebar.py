@@ -79,7 +79,8 @@ class Sidebar(ctk.CTkFrame):
             side="bottom",
             fill="x",
             padx=0,
-            pady=(0, 15)
+            # Keep the account controls higher within the visible sidebar.
+            pady=(0, 48)
         )
 
         self.account_button = ctk.CTkButton(
