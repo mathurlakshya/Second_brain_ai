@@ -75,19 +75,21 @@ class Sidebar(ctk.CTkFrame):
             self,
             fg_color="transparent"
         )
-        self.bottom_frame.pack(
-            side="bottom",
-            fill="x",
-            padx=0,
-            # Keep the account controls higher within the visible sidebar.
-            pady=(0, 48)
+        # Pin the account area to the sidebar itself instead of relying on
+        # pack order/expanding Thought Threads, which could push it out of view.
+        self.bottom_frame.place(
+            relx=0,
+            rely=1,
+            anchor="sw",
+            relwidth=1,
+            y=-12
         )
 
         # Use one full-width account button so the username remains visible
         # even when the sidebar is narrow or scaled by Windows display settings.
         self.account_button = ctk.CTkButton(
             self.bottom_frame,
-            text=f"👤  {self.username}     ›",
+            text=f"👤  {str(self.username)[:18]}   ›",
             command=self.show_account_menu,
             height=42,
             corner_radius=10,
