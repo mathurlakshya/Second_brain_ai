@@ -39,23 +39,6 @@ class Sidebar(ctk.CTkFrame):
         self.create_button("📜 Analytics", "analytics")
         self.create_button("⚙️ Settings", "settings")
 
-        # Put a second, easy-to-find sign-out control in the main navigation.
-        # This keeps logout accessible even if the sidebar footer is clipped.
-        self.visible_logout_button = ctk.CTkButton(
-            self,
-            text="↪  Log out",
-            command=self.logout,
-            height=40,
-            corner_radius=8,
-            fg_color=SURFACE_ALT,
-            hover_color=BORDER_HOVER,
-            border_width=1,
-            border_color=BORDER,
-            text_color=TEXT_BRIGHT,
-            anchor="w",
-        )
-        self.visible_logout_button.pack(fill="x", padx=15, pady=(3, 0))
-
         # Thought Threads live directly below Settings. The section starts
         # empty and populates automatically once five sufficiently similar
         # memories have been detected for the same activity.
@@ -100,9 +83,12 @@ class Sidebar(ctk.CTkFrame):
             pady=(0, 48)
         )
 
+        self.account_row = ctk.CTkFrame(self.bottom_frame, fg_color="transparent")
+        self.account_row.pack(fill="x", padx=15)
+
         self.account_button = ctk.CTkButton(
-            self.bottom_frame,
-            text=f"👤  {self.username}  ▾",
+            self.account_row,
+            text=f"👤  {self.username}",
             command=self.show_account_menu,
             height=42,
             corner_radius=10,
@@ -113,24 +99,23 @@ class Sidebar(ctk.CTkFrame):
             text_color=TEXT_BRIGHT,
             anchor="w"
         )
-        self.account_button.pack(fill="x", padx=15, pady=(0, 8))
+        self.account_button.pack(side="left", fill="x", expand=True, padx=(0, 5))
 
-        # Keep Log out visible in the sidebar so users don't have to discover
-        # a popup menu to sign out.
-        self.logout_button = ctk.CTkButton(
-            self.bottom_frame,
-            text="↪  Log out",
-            command=self.logout,
-            height=38,
+        self.account_arrow_button = ctk.CTkButton(
+            self.account_row,
+            text="›",
+            command=self.show_account_menu,
+            width=34,
+            height=42,
             corner_radius=10,
-            fg_color="transparent",
-            hover_color=SURFACE_ALT,
+            fg_color=SURFACE_ALT,
+            hover_color=BORDER_HOVER,
             border_width=1,
             border_color=BORDER,
             text_color=TEXT_BRIGHT,
-            anchor="w"
+            font=("Segoe UI", 20, "bold"),
         )
-        self.logout_button.pack(fill="x", padx=15)
+        self.account_arrow_button.pack(side="right")
 
         self.refresh_thought_threads()
 
