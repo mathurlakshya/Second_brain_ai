@@ -83,12 +83,11 @@ class Sidebar(ctk.CTkFrame):
             pady=(0, 48)
         )
 
-        self.account_row = ctk.CTkFrame(self.bottom_frame, fg_color="transparent")
-        self.account_row.pack(fill="x", padx=15)
-
+        # Use one full-width account button so the username remains visible
+        # even when the sidebar is narrow or scaled by Windows display settings.
         self.account_button = ctk.CTkButton(
-            self.account_row,
-            text=f"👤  {self.username}",
+            self.bottom_frame,
+            text=f"👤  {self.username}     ›",
             command=self.show_account_menu,
             height=42,
             corner_radius=10,
@@ -97,25 +96,10 @@ class Sidebar(ctk.CTkFrame):
             border_width=1,
             border_color=BORDER,
             text_color=TEXT_BRIGHT,
-            anchor="w"
+            anchor="w",
+            font=("Segoe UI", 12),
         )
-        self.account_button.pack(side="left", fill="x", expand=True, padx=(0, 5))
-
-        self.account_arrow_button = ctk.CTkButton(
-            self.account_row,
-            text="›",
-            command=self.show_account_menu,
-            width=34,
-            height=42,
-            corner_radius=10,
-            fg_color=SURFACE_ALT,
-            hover_color=BORDER_HOVER,
-            border_width=1,
-            border_color=BORDER,
-            text_color=TEXT_BRIGHT,
-            font=("Segoe UI", 20, "bold"),
-        )
-        self.account_arrow_button.pack(side="right")
+        self.account_button.pack(fill="x", padx=15)
 
         self.refresh_thought_threads()
 
