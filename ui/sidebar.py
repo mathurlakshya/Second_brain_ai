@@ -39,6 +39,23 @@ class Sidebar(ctk.CTkFrame):
         self.create_button("📜 Analytics", "analytics")
         self.create_button("⚙️ Settings", "settings")
 
+        # Put a second, easy-to-find sign-out control in the main navigation.
+        # This keeps logout accessible even if the sidebar footer is clipped.
+        self.visible_logout_button = ctk.CTkButton(
+            self,
+            text="↪  Log out",
+            command=self.logout,
+            height=40,
+            corner_radius=8,
+            fg_color=SURFACE_ALT,
+            hover_color=BORDER_HOVER,
+            border_width=1,
+            border_color=BORDER,
+            text_color=TEXT_BRIGHT,
+            anchor="w",
+        )
+        self.visible_logout_button.pack(fill="x", padx=15, pady=(3, 0))
+
         # Thought Threads live directly below Settings. The section starts
         # empty and populates automatically once five sufficiently similar
         # memories have been detected for the same activity.
