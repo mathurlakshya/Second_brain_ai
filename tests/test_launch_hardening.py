@@ -76,6 +76,33 @@ def test_screenshot_setting_is_per_user(isolated_db):
     assert db.get_user_setting(2) is False
 
 
+def test_recording_is_opt_in_by_default(isolated_db):
+    assert db.get_recording_preferences(1) == {
+        "consent": False,
+        "auto_start": False,
+    }
+
+
+def test_auto_start_recording_requires_explicit_consent(isolated_db):
+    db.set_recording_preferences(1, consent=False, auto_start=True)
+    assert db.get_recording_preferences(1) == {
+        "consent": False,
+        "auto_start": False,
+    }
+
+    db.set_recording_preferences(1, consent=True, auto_start=True)
+    assert db.get_recording_preferences(1) == {
+        "consent": True,
+        "auto_start": True,
+    }
+
+    db.set_recording_preferences(1, consent=False, auto_start=True)
+    assert db.get_recording_preferences(1) == {
+        "consent": False,
+        "auto_start": False,
+    }
+
+
 def test_memory_search_returns_clear_result_when_no_matches(monkeypatch):
     import ai.thought_thread_chat as chat
 
