@@ -46,7 +46,7 @@ Continuous recording does not send screenshots to Gemini.
 
    `python app.py`
 
-The application remains usable without a Gemini key. When installed, the app can start automatically with Windows using trusted-device login, and local memory recording starts automatically after login.
+The application remains usable without a Gemini key. Local memory recording is off by default and requires explicit consent before the first recording session. Automatic recording is a separate opt-in in Settings and cannot be enabled without recording consent. The installer’s optional Windows sign-in launch task is unchecked by default; launching the app does not itself mean recording is enabled.
 
 ## Testing
 
@@ -75,3 +75,7 @@ Then build the installer with Inno Setup using `installer.iss`.
 - Verify the app works without `GEMINI_API_KEY`.
 - Verify explicit Gemini features with a valid key.
 - Test idle/resume behavior.
+- Verify first-run recording consent and that declining it leaves recording off.
+- Verify recording remains off after login/restart unless both consent and auto-start are enabled.
+- Verify revoking recording consent stops the active recorder immediately.
+- Verify the installer does not add Windows startup unless the optional task is selected.
