@@ -189,6 +189,21 @@ class SettingsPage(ctk.CTkFrame):
         ctk.set_appearance_mode(mode)
         refresh_theme(self.winfo_toplevel())
 
+    def refresh_recording_controls(self):
+        """Refresh persisted consent preferences whenever Settings is opened."""
+        preferences = get_recording_preferences(self.user_id)
+        if preferences["consent"]:
+            self.recording_switch.select()
+            self.auto_start_switch.configure(state="normal")
+        else:
+            self.recording_switch.deselect()
+            self.auto_start_switch.deselect()
+            self.auto_start_switch.configure(state="disabled")
+        if preferences["auto_start"]:
+            self.auto_start_switch.select()
+        else:
+            self.auto_start_switch.deselect()
+
     def toggle_recording_consent(self):
         enabled = bool(self.recording_switch.get())
         preferences = get_recording_preferences(self.user_id)
