@@ -5,6 +5,8 @@ from database.database import (
     delete_user_memories,
     export_user_memories,
     get_memory_counts,
+    get_recording_preferences,
+    set_recording_preferences,
     get_user_setting,
     set_user_setting,
 )
@@ -44,6 +46,42 @@ class SettingsPage(ctk.CTkFrame):
         ctk.CTkLabel(privacy, text="PRIVACY", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(
             anchor="w", padx=22, pady=(20, 8)
         )
+
+        recording_preferences = get_recording_preferences(self.user_id)
+        self.recording_switch = ctk.CTkSwitch(
+            privacy,
+            text="Allow local memory recording",
+            command=self.toggle_recording_consent,
+            text_color=TEXT_BRIGHT,
+            progress_color=ACCENT,
+        )
+        self.recording_switch.pack(anchor="w", padx=22, pady=(0, 8))
+        (self.recording_switch.select() if recording_preferences["consent"] else self.recording_switch.deselect())
+
+        self.auto_start_switch = ctk.CTkSwitch(
+            privacy,
+            text="Automatically start recording when the app opens",
+            command=self.toggle_auto_start_recording,
+            text_color=TEXT_BRIGHT,
+            progress_color=ACCENT,
+        )
+        self.auto_start_switch.pack(anchor="w", padx=22, pady=(0, 8))
+        (self.auto_start_switch.select() if recording_preferences["auto_start"] else self.auto_start_switch.deselect())
+        if not recording_preferences["consent"]:
+            self.auto_start_switch.configure(state="disabled")
+
+        ctk.CTkLabel(
+            privacy,
+            text="Recording reads active app/window titles and visible screen text for searchable memories. "
+                 "Memory text and embeddings stay on this device by default; screenshots are not saved "
+                 "unless you enable the separate option below. Optional cloud AI features may send the "
+                 "prompt and relevant context you submit to the configured AI provider. Recording is "
+                 "off by default and can be stopped at any time.",
+            font=("Segoe UI", 11),
+            text_color=TEXT_MUTED,
+            wraplength=760,
+            justify="left",
+        ).pack(anchor="w", padx=22, pady=(0, 14))
 
         save_screenshots = get_user_setting(self.user_id)
         self.screenshot_switch = ctk.CTkSwitch(
@@ -150,6 +188,61 @@ class SettingsPage(ctk.CTkFrame):
     def change_mode(self, mode):
         ctk.set_appearance_mode(mode)
         refresh_theme(self.winfo_toplevel())
+
+    def toggle_recording_consent(self):
+        enabled = bool(self.recording_switch.get())
+        preferences = get_recording_preferences(self.user_id)
+
+        if enabled:
+            accepted = messagebox.askyesno(
+                "Allow local memory recording?",
+                "When enabled, Second Brain AI reads active application/window titles "
+                "and visible on-screen text to create searchable memories stored locally. "
+                "Screenshots are off by default. Optional cloud AI actions may send the "
+                "prompt and relevant context you submit to the configured AI provider. "
+                "You can stop recording at any time.\n\nAllow recording?",
+                icon="warning",
+                parent=self.winfo_toplevel(),
+            )
+            if not accepted:
+                self.recording_switch.deselect()
+                return
+            set_recording_preferences(
+                self.user_id,
+                consent=True,
+                auto_start=preferences["auto_start"],
+            )
+            self.auto_start_switch.configure(state="normal")
+        else:
+            set_recording_preferences(self.user_id, consent=False, auto_start=False)
+            self.auto_start_switch.deselect()
+            self.auto_start_switch.configure(state="disabled")
+            # Revoking consent stops any active recorder immediately.
+            root = self.winfo_toplevel()
+            app_window = getattr(root, "app_window", None)
+            dashboard = getattr(app_window, "pages", {}).get("dashboard") if app_window else None
+            if dashboard is not None:
+                try:
+                    dashboard.stop_memory_recording()
+                except Exception:
+                    pass
+
+    def toggle_auto_start_recording(self):
+        enabled = bool(self.auto_start_switch.get())
+        preferences = get_recording_preferences(self.user_id)
+        if enabled and not preferences["consent"]:
+            self.auto_start_switch.deselect()
+            messagebox.showinfo(
+                "Recording consent required",
+                "Enable local memory recording first. Automatic recording cannot be enabled without your consent.",
+                parent=self.winfo_toplevel(),
+            )
+            return
+        set_recording_preferences(
+            self.user_id,
+            consent=preferences["consent"],
+            auto_start=enabled,
+        )
 
     def toggle_screenshot_setting(self):
         set_user_setting(self.user_id, bool(self.screenshot_switch.get()))
