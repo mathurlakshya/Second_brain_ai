@@ -18,10 +18,12 @@ PrivilegesRequired=admin
 [Files]
 Source: "dist\SecondBrainAI\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[Tasks]
+Name: "startup"; Description: "Launch Second Brain AI when I sign in (recording requires a separate opt-in in Settings)"; GroupDescription: "Optional settings:"; Flags: unchecked
+
 [Registry]
-; Launch the app for the current Windows user at every sign-in.
-; The application then uses trusted-device login and starts recording automatically.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SecondBrainAI"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue
+; Startup is an explicit installer opt-in. Recording remains separately disabled by default.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "SecondBrainAI"; ValueData: """"{app}\{#MyAppExeName}""""; Flags: uninsdeletevalue; Tasks: startup
 
 [Icons]
 Name: "{group}\Second Brain AI"; Filename: "{app}\{#MyAppExeName}"
