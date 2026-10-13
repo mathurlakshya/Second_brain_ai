@@ -87,11 +87,12 @@ def test_memory_search_returns_clear_result_when_no_matches(monkeypatch):
     assert result == "I couldn't find any matching recorded memories."
 
 
-
 def test_jarvis_checks_memories_before_general_chat(monkeypatch):
     import ai.jarvis_router as router
+    import ai.gemini as gemini
 
     calls = []
+    monkeypatch.setattr(gemini, "is_gemini_available", lambda: True)
     monkeypatch.setattr(
         "ai.thought_thread_chat.ask_memory_thread_chat",
         lambda question, user_id: calls.append(("memory", question, user_id))
@@ -112,21 +113,42 @@ def test_jarvis_checks_memories_before_general_chat(monkeypatch):
     assert result.endswith("General answer.")
 
 
-def test_jarvis_uses_memory_answer_when_available(monkeypatch):
+def test_jarvis_uses_local_memory_answer_without_gemini(monkeypatch):
     import ai.jarvis_router as router
+    import ai.gemini as gemini
 
+    monkeypatch.setattr(gemini, "is_gemini_available", lambda: False)
     monkeypatch.setattr(
         "ai.thought_thread_chat.ask_memory_thread_chat",
         lambda question, user_id: "You were working in TypeRacing.",
     )
     monkeypatch.setattr(
         "ai.gemini.ask_jarvis",
-        lambda question: pytest.fail("General AI must not override a memory answer."),
+        lambda question: pytest.fail("General AI must not be called without Gemini."),
     )
 
     assert router.ask_jarvis_unified("What was I doing?", user_id=7) == (
         "You were working in TypeRacing."
     )
+
+
+def test_jarvis_explains_missing_gemini_only_after_memory_miss(monkeypatch):
+    import ai.jarvis_router as router
+    import ai.gemini as gemini
+
+    calls = []
+    monkeypatch.setattr(gemini, "is_gemini_available", lambda: False)
+    monkeypatch.setattr(
+        "ai.thought_thread_chat.ask_memory_thread_chat",
+        lambda question, user_id: calls.append((question, user_id))
+        or "I couldn't find any matching recorded memories.",
+    )
+
+    result = router.ask_jarvis_unified("Explain recursion", user_id=7)
+
+    assert calls == [("Explain recursion", 7)]
+    assert "GEMINI_API_KEY" in result
+    assert "memory search still work locally" in result
 
 
 def test_quota_error_shows_simple_retry_time_without_provider_details():
