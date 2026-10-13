@@ -1,5 +1,11 @@
 import threading
 import customtkinter as ctk
+from tkinter import messagebox
+
+from database.database import (
+    get_recording_preferences,
+    set_recording_preferences,
+)
 from ui.floating_recorder import FloatingRecorder
 from memory.recorder import MemoryRecorder
 from ui.chat_panel import ChatPanel
@@ -258,9 +264,10 @@ class Dashboard(ctk.CTkFrame):
         value_label.pack(side="right")
 
     def start_recording_on_launch(self):
-        """Start local memory recording automatically after a successful login."""
+        """Start only when consent and the separate auto-start option are enabled."""
         try:
-            if not self.recorder.running:
+            preferences = get_recording_preferences(self.user_id)
+            if preferences["consent"] and preferences["auto_start"] and not self.recorder.running:
                 self.start_memory_recording()
         except Exception as e:
             print(f"⚠️ Automatic recording start failed: {e}")
@@ -287,6 +294,30 @@ class Dashboard(ctk.CTkFrame):
             self.start_memory_recording()
 
     def start_memory_recording(self):
+        # All entry points pass through this consent check before capture starts.
+        preferences = get_recording_preferences(self.user_id)
+        if not preferences["consent"]:
+            accepted = messagebox.askyesno(
+                "Enable Second Brain memory recording?",
+                "Second Brain AI can monitor the active application and window "
+                "title, and read visible on-screen text using Windows accessibility "
+                "features and OCR. This text is stored locally to build searchable "
+                "memories. Screenshots are not saved by default. If you choose "
+                "optional cloud AI features, the prompt and relevant context you "
+                "submit may be sent to the configured AI provider.\n\n"
+                "Recording stays off unless you enable it. You can stop it at any "
+                "time and change these choices in Settings. Enable recording now?",
+                icon="warning",
+                parent=self.winfo_toplevel(),
+            )
+            if not accepted:
+                return False
+            set_recording_preferences(
+                self.user_id,
+                consent=True,
+                auto_start=preferences["auto_start"],
+            )
+
         print("🟢 STARTING MEMORY RECORDING")
 
         if self.recorder.running:
