@@ -11,9 +11,11 @@ else:
 
 APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-# Support both developer .env files and a user-level .env in AppData.
-load_dotenv()
-load_dotenv(APP_DATA_DIR / ".env")
+# Load the installed app's user-level configuration first. The project-local
+# .env remains a fallback for development, but must not shadow the installed
+# app's AppData configuration.
+load_dotenv(APP_DATA_DIR / ".env", override=False)
+load_dotenv(override=False)
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip() or None
 GEMINI_ENABLED = bool(GEMINI_API_KEY)
