@@ -1,5 +1,4 @@
-"""Route every dashboard JARVIS message through memory-first retrieval."""
-
+"""Route dashboard JARVIS messages through memory retrieval and general AI."""
 
 _NO_MEMORY_MARKERS = (
     "i couldn't find any matching recorded memories",
@@ -16,7 +15,21 @@ def _memory_answer_is_insufficient(answer):
 
 
 def ask_jarvis_unified(question, user_id):
-    """Search the user's memories first; use general AI only when they don't answer."""
+    """Use Gemini for JARVIS answers, consulting recorded memories first."""
+    from ai.gemini import is_gemini_available
+
+    # Do not present a raw list of matching memories as if it were an AI answer.
+    # Give the user the exact setup step needed to enable conversational JARVIS.
+    if not is_gemini_available():
+        return (
+            "JARVIS's AI engine isn't configured yet, so I can search your "
+            "recorded memories but can't generate normal AI answers.\n\n"
+            "To enable it, create or edit this file:\n"
+            "%LOCALAPPDATA%\\SecondBrainAI\\.env\n\n"
+            "Add the line GEMINI_API_KEY=your_actual_api_key, save the file, "
+            "and completely restart Second Brain AI. Keep your API key private."
+        )
+
     from ai.thought_thread_chat import ask_memory_thread_chat
 
     memory_answer = ask_memory_thread_chat(question, user_id)
