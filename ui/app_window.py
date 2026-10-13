@@ -57,6 +57,8 @@ class AppWindow(ctk.CTkFrame):
     def show_page(self, page_name):
         page = self.pages.get(page_name)
         if page:
+            if page_name == "settings" and hasattr(page, "refresh_recording_controls"):
+                page.refresh_recording_controls()
             page.tkraise()
 
     def start_recording_on_launch(self):
