@@ -14,25 +14,28 @@ def _memory_answer_is_insufficient(answer):
     return not normalized or any(marker in normalized for marker in _NO_MEMORY_MARKERS)
 
 
+def _configuration_help():
+    """Explain how to enable cloud chat without blocking local memory retrieval."""
+    return (
+        "I couldn't find a matching recorded memory, and JARVIS's AI engine "
+        "isn't configured for general questions yet. Core recording and memory "
+        "search still work locally.\n\n"
+        "To enable general AI answers, create or edit this file:\n"
+        "%LOCALAPPDATA%\\SecondBrainAI\\.env\n\n"
+        "Add the line GEMINI_API_KEY=your_actual_api_key, save the file, "
+        "and completely restart Second Brain AI. Keep your API key private."
+    )
+
+
 def ask_jarvis_unified(question, user_id):
-    """Use Gemini for JARVIS answers, consulting recorded memories first."""
+    """Search local memories first; use Gemini only for general-answer fallback."""
     from ai.gemini import is_gemini_available
 
-    # Do not present a raw list of matching memories as if it were an AI answer.
-    # Give the user the exact setup step needed to enable conversational JARVIS.
-    if not is_gemini_available():
-        return (
-            "JARVIS's AI engine isn't configured yet, so I can search your "
-            "recorded memories but can't generate normal AI answers.\n\n"
-            "To enable it, create or edit this file:\n"
-            "%LOCALAPPDATA%\\SecondBrainAI\\.env\n\n"
-            "Add the line GEMINI_API_KEY=your_actual_api_key, save the file, "
-            "and completely restart Second Brain AI. Keep your API key private."
-        )
-
+    # Local memory search must work even when the optional cloud AI is disabled.
     from ai.thought_thread_chat import ask_memory_thread_chat
 
     memory_answer = ask_memory_thread_chat(question, user_id)
+
     # A quota/service error is not a retrieval miss; don't waste another API call.
     if memory_answer and (
         "you've exceeded your usage limits" in memory_answer.lower()
@@ -40,12 +43,19 @@ def ask_jarvis_unified(question, user_id):
     ):
         return memory_answer
 
+    # Preserve useful local retrieval results even without an API key. When
+    # Gemini is available, the memory helper returns a grounded natural answer;
+    # without it, it returns a local list of matching memories.
     if not _memory_answer_is_insufficient(memory_answer):
         return memory_answer
+
+    if not is_gemini_available():
+        return _configuration_help()
 
     # No relevant recorded memory was found. Treat the message as a general
     # question, while being transparent that this answer is not a recollection.
     from ai.gemini import ask_jarvis
+
     general_answer = ask_jarvis(question)
     if not general_answer:
         general_answer = "I couldn't generate a response right now."
