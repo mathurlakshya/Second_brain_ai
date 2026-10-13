@@ -71,9 +71,22 @@ def create_database():
             CREATE TABLE IF NOT EXISTS user_settings(
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER UNIQUE,
-                save_screenshots INTEGER DEFAULT 0
+                save_screenshots INTEGER DEFAULT 0,
+                recording_consent INTEGER NOT NULL DEFAULT 0,
+                auto_start_recording INTEGER NOT NULL DEFAULT 0
             )
         """)
+        # Migrate existing user databases without resetting personal data.
+        cursor.execute("PRAGMA table_info(user_settings)")
+        settings_columns = {column[1] for column in cursor.fetchall()}
+        if "recording_consent" not in settings_columns:
+            cursor.execute(
+                "ALTER TABLE user_settings ADD COLUMN recording_consent INTEGER NOT NULL DEFAULT 0"
+            )
+        if "auto_start_recording" not in settings_columns:
+            cursor.execute(
+                "ALTER TABLE user_settings ADD COLUMN auto_start_recording INTEGER NOT NULL DEFAULT 0"
+            )
         _ensure_thought_thread_columns(cursor)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS thought_threads(
@@ -158,6 +171,41 @@ def set_user_setting(user_id, save_screenshots):
             VALUES (?, ?)
             ON CONFLICT(user_id) DO UPDATE SET save_screenshots = excluded.save_screenshots
         """, (user_id, 1 if save_screenshots else 0))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_recording_preferences(user_id):
+    """Return recording preferences; consent and auto-start default to off."""
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT recording_consent, auto_start_recording "
+            "FROM user_settings WHERE user_id = ?",
+            (user_id,),
+        ).fetchone()
+        return {
+            "consent": bool(row[0]) if row else False,
+            "auto_start": bool(row[1]) if row else False,
+        }
+    finally:
+        conn.close()
+
+
+def set_recording_preferences(user_id, consent, auto_start):
+    """Persist recording consent; automatic recording cannot bypass consent."""
+    consent = bool(consent)
+    auto_start = bool(auto_start) and consent
+    conn = _connect()
+    try:
+        conn.execute("""
+            INSERT INTO user_settings(user_id, recording_consent, auto_start_recording)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                recording_consent = excluded.recording_consent,
+                auto_start_recording = excluded.auto_start_recording
+        """, (user_id, int(consent), int(auto_start)))
         conn.commit()
     finally:
         conn.close()
