@@ -299,6 +299,19 @@ def update_memory(
             print(f"⚠️ Thought thread assignment skipped: {type(exc).__name__}")
 
 
+def update_activity_last_seen(memory_id, last_seen):
+    """Refresh the end time for an ongoing activity without changing its memory."""
+    conn = _connect()
+    try:
+        conn.execute(
+            "UPDATE memories SET last_seen = ? WHERE id = ?",
+            (last_seen, memory_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def export_user_memories(user_id, output_path):
     conn = _connect()
     try:
