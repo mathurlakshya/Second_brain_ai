@@ -6,7 +6,7 @@ from database.users import create_users_table
 from config import DB_PATH
 
 DB_NAME = DB_PATH
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def _connect():
@@ -36,6 +36,17 @@ def _run_migrations(cursor):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_timestamp ON memories(user_id, timestamp)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_thread ON memories(user_id, thread_id)")
         cursor.execute("PRAGMA user_version = 2")
+        version = 2
+    if version < 3:
+        cursor.execute("PRAGMA table_info(memories)")
+        columns = {column[1] for column in cursor.fetchall()}
+        if "last_seen" not in columns:
+            cursor.execute("ALTER TABLE memories ADD COLUMN last_seen TEXT")
+        if "activity_id" not in columns:
+            cursor.execute("ALTER TABLE memories ADD COLUMN activity_id TEXT")
+        cursor.execute("UPDATE memories SET last_seen = timestamp WHERE last_seen IS NULL OR last_seen = ''")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_activity ON memories(user_id, activity_id)")
+        cursor.execute("PRAGMA user_version = 3")
 
 
 def create_database():
@@ -64,7 +75,9 @@ def create_database():
                 embedding TEXT,
                 contains_error INTEGER,
                 error_text TEXT,
-                thread_id INTEGER
+                thread_id INTEGER,
+                last_seen TEXT,
+                activity_id TEXT
             )
         """)
         cursor.execute("""
@@ -103,6 +116,7 @@ def create_database():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_thread_id ON memories(thread_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories(user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_activity ON memories(user_id, activity_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_threads_user_updated ON thought_threads(user_id, updated_at DESC)")
         _run_migrations(cursor)
         conn.commit()
@@ -112,17 +126,18 @@ def create_database():
 
 
 def save_memory(user_id, app, title, now, screenshot_path, summary, ocr_text,
-                embedding="", contains_error=0, error_text=""):
+                embedding="", contains_error=0, error_text="", activity_id=""):
     conn = _connect()
     try:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO memories(
                 user_id, app_name, window_title, timestamp, screenshot,
-                summary, ocr_text, embedding, contains_error, error_text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                summary, ocr_text, embedding, contains_error, error_text,
+                last_seen, activity_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (user_id, app, title, now, screenshot_path, summary, ocr_text,
-              json.dumps(embedding), contains_error, error_text))
+              json.dumps(embedding), contains_error, error_text, now, activity_id))
         memory_id = cursor.lastrowid
         conn.commit()
         return memory_id
@@ -227,16 +242,17 @@ def get_recent_memories(user_id=None, limit=50):
         conn.close()
 
 
-def create_pending_memory(user_id, app, title, now, screenshot=""):
+def create_pending_memory(user_id, app, title, now, screenshot="", activity_id=""):
     conn = _connect()
     try:
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO memories(
                 user_id, app_name, window_title, timestamp, screenshot,
-                summary, ocr_text, embedding, contains_error, error_text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (user_id, app, title, now, screenshot, "Processing...", "", "", 0, ""))
+                summary, ocr_text, embedding, contains_error, error_text,
+                last_seen, activity_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (user_id, app, title, now, screenshot, "Processing...", "", "", 0, "", now, activity_id))
         memory_id = cursor.lastrowid
         conn.commit()
         return memory_id
@@ -244,16 +260,28 @@ def create_pending_memory(user_id, app, title, now, screenshot=""):
         conn.close()
 
 
-def update_memory(memory_id, summary, ocr_text, embedding, contains_error=0, error_text=""):
+def update_memory(
+    memory_id, summary, ocr_text, embedding, contains_error=0, error_text="",
+    last_seen=None, assign_to_thread=True,
+):
     conn = _connect()
     try:
         cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE memories
-            SET summary = ?, ocr_text = ?, embedding = ?,
-                contains_error = ?, error_text = ?
-            WHERE id = ?
-        """, (summary, ocr_text, json.dumps(embedding), contains_error, error_text, memory_id))
+        if last_seen:
+            cursor.execute("""
+                UPDATE memories
+                SET summary = ?, ocr_text = ?, embedding = ?,
+                    contains_error = ?, error_text = ?, last_seen = ?
+                WHERE id = ?
+            """, (summary, ocr_text, json.dumps(embedding), contains_error,
+                  error_text, last_seen, memory_id))
+        else:
+            cursor.execute("""
+                UPDATE memories
+                SET summary = ?, ocr_text = ?, embedding = ?,
+                    contains_error = ?, error_text = ?
+                WHERE id = ?
+            """, (summary, ocr_text, json.dumps(embedding), contains_error, error_text, memory_id))
         memory = cursor.execute(
             "SELECT user_id, app_name, window_title, timestamp FROM memories WHERE id = ?",
             (memory_id,),
@@ -262,7 +290,7 @@ def update_memory(memory_id, summary, ocr_text, embedding, contains_error=0, err
     finally:
         conn.close()
 
-    if memory and embedding:
+    if assign_to_thread and memory and embedding:
         try:
             from memory.thought_threads import assign_memory_to_thread
             user_id, app, title, timestamp = memory
