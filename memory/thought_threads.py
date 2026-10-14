@@ -406,7 +406,7 @@ def get_thread_memories(user_id, thread_id, limit=25):
     conn = sqlite3.connect(DB_NAME)
     try:
         cursor = conn.cursor()
-        cursor.execute("""SELECT timestamp, app_name, window_title, summary, ocr_text
+        cursor.execute("""SELECT timestamp, COALESCE(last_seen, timestamp), app_name, window_title, summary, ocr_text
             FROM memories WHERE user_id = ? AND thread_id = ? ORDER BY id DESC LIMIT ?""", (user_id, thread_id, limit))
         return cursor.fetchall()
     finally:
