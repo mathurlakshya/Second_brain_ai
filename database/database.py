@@ -116,7 +116,6 @@ def create_database():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_thread_id ON memories(thread_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_id ON memories(user_id)")
-        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memories_user_activity ON memories(user_id, activity_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_threads_user_updated ON thought_threads(user_id, updated_at DESC)")
         _run_migrations(cursor)
         conn.commit()
