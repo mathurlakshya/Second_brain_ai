@@ -113,11 +113,12 @@ def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread
         if not memories:
             continue
         lines = []
-        for timestamp, app, title, summary, ocr in memories:
+        for timestamp, last_seen, app, title, summary, ocr in memories:
             key = (timestamp or "", app or "", title or "")
             context_seen.add(key)
+            time_range = timestamp if not last_seen or last_seen == timestamp else f"{timestamp} to {last_seen}"
             lines.append(
-                f"Time: {timestamp}\nApplication: {app}\nWindow: {title}\n"
+                f"Time: {time_range}\nApplication: {app}\nWindow: {title}\n"
                 f"Summary: {summary or ''}\nScreen Text: {ocr or ''}"
             )
         context_parts.append("\n--- RELATED THOUGHT THREAD ---\n" + "\n\n".join(lines))
