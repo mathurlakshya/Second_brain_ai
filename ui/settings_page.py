@@ -156,12 +156,16 @@ class SettingsPage(ctk.CTkFrame):
 
         about_panel = ctk.CTkFrame(content, fg_color=SURFACE, corner_radius=14)
         about_panel.pack(fill="x", expand=False, padx=42, pady=(0, 30))
-        ctk.CTkLabel(about_panel, text="ABOUT SECOND BRAIN", font=("Segoe UI", 11, "bold"), text_color=TEXT_DIM).pack(
-            anchor="w", padx=22, pady=(20, 8)
-        )
+        ctk.CTkLabel(
+            about_panel,
+            text="ABOUT SECOND BRAIN",
+            font=("Segoe UI", 11, "bold"),
+            text_color=TEXT_DIM,
+        ).pack(anchor="w", padx=22, pady=(20, 8))
+
         about = ctk.CTkTextbox(
             about_panel,
-            height=180,
+            height=205,
             fg_color="transparent",
             border_width=0,
             text_color=TEXT_SOFT,
@@ -171,11 +175,17 @@ class SettingsPage(ctk.CTkFrame):
         about.pack(fill="x", expand=False, padx=22, pady=(0, 20))
         about.insert(
             "end",
-            "Second Brain AI\n\n"
-            "Version 1.0\n\n"
-            "Your recordings, OCR text, embeddings, and memories are stored locally. "
-            "Gemini is an optional cloud intelligence layer used only for explicit AI features. "
-            "Use Export before deleting memories if you want a portable copy.",
+            "Second Brain AI  |  Version 1.0\n\n"
+            "Make your digital day easier to remember. Second Brain AI helps you capture "
+            "the context of your work, turn activity into searchable memories, and find "
+            "important details when you need them.\n\n"
+            "• Search your history using natural language and meaningful context.\n"
+            "• Follow activity timelines with clear start and end times.\n"
+            "• Connect related sessions into Thought Threads to see the bigger picture.\n"
+            "• Ask JARVIS questions, explore your memories, and request AI-powered screen insights.\n\n"
+            "Your information stays under your control. Recording is opt-in, screenshots "
+            "are not saved by default, and you can export or delete your memories at any time. "
+            "Optional AI features are available when configured.",
         )
         about.configure(state="disabled")
 
