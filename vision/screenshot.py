@@ -1,19 +1,16 @@
-import mss
-import os
 import datetime
+import os
 
-SCREENSHOT_FOLDER = "screenshots"
+import mss
 
-os.makedirs(SCREENSHOT_FOLDER, exist_ok=True)
+from config import SCREENSHOT_DIR
+
+os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 
 
 def capture_screen():
-
-    filename = datetime.datetime.now().strftime("%Y%m%d_%H%M%S") + ".png"
-
-    filepath = os.path.join(SCREENSHOT_FOLDER, filename)
-
+    filename = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f") + ".png"
+    filepath = os.path.join(SCREENSHOT_DIR, filename)
     with mss.mss() as sct:
         sct.shot(output=filepath)
-
     return filepath

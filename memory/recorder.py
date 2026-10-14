@@ -1,6 +1,7 @@
 import os
 import time
 import datetime
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -15,6 +16,7 @@ from database.database import (
     create_pending_memory,
     update_memory,
     get_user_setting,
+    update_activity_last_seen,
 )
 from ai.embeddings import create_embedding
 
@@ -26,6 +28,8 @@ MAX_INACTIVE_MEMORIES = 5
 SCREEN_CHANGE_THRESHOLD = 0.012
 AI_ENRICHMENT_INTERVAL_SECONDS = 30
 ACCESSIBILITY_MAX_CHARS = 12000
+MAX_ACTIVITY_TEXT_CHARS = 24000
+MAX_ACTIVITY_TEXT_BLOCKS = 40
 
 
 from memory.activity import get_idle_seconds
@@ -79,6 +83,15 @@ class MemoryRecorder:
         self.last_probe = None
         self.last_meaningful_capture = 0.0
         self.last_ai_enrichment = 0.0
+
+        # One database memory represents one uninterrupted app/window activity.
+        self.active_memory_id = None
+        self.active_activity_id = None
+        self.active_activity_started_at = None
+        self.active_activity_text = ""
+        self.active_activity_blocks = set()
+        self.active_activity_block_order = []
+        self.last_activity_touch = 0.0
 
         self.processing_pool = ThreadPoolExecutor(max_workers=1)
 
@@ -168,6 +181,40 @@ class MemoryRecorder:
             f"Screen changed, but no readable UI text was available."
         )
 
+    def _merge_activity_text(self, new_text):
+        """Keep unique OCR/accessibility snapshots inside the current activity."""
+        cleaned = "\n".join(
+            line.strip() for line in (new_text or "").splitlines()
+            if line.strip()
+        )
+        if not cleaned:
+            return self.active_activity_text
+
+        fingerprint = cleaned.casefold()
+        if fingerprint in self.active_activity_blocks:
+            return self.active_activity_text
+
+        self.active_activity_blocks.add(fingerprint)
+        self.active_activity_block_order.append(fingerprint)
+        if len(self.active_activity_block_order) > MAX_ACTIVITY_TEXT_BLOCKS:
+            expired = self.active_activity_block_order.pop(0)
+            self.active_activity_blocks.discard(expired)
+        blocks = self.active_activity_text.split("\n\n") if self.active_activity_text else []
+        blocks.append(cleaned)
+        blocks = blocks[-MAX_ACTIVITY_TEXT_BLOCKS:]
+        merged = "\n\n".join(blocks)
+        self.active_activity_text = merged[-MAX_ACTIVITY_TEXT_CHARS:]
+        return self.active_activity_text
+
+    def _reset_activity(self):
+        """Start a new activity session after the foreground context changes."""
+        self.active_memory_id = None
+        self.active_activity_id = uuid.uuid4().hex
+        self.active_activity_started_at = None
+        self.active_activity_text = ""
+        self.active_activity_blocks.clear()
+        self.active_activity_block_order.clear()
+
     # --------------------------------------------------
     # START
     # --------------------------------------------------
@@ -198,15 +245,36 @@ class MemoryRecorder:
 
                 idle_seconds = get_idle_seconds()
 
-                # App/window changes are meaningful context changes.
-                if window_changed:
-                    self.inactive_memory_count = 0
-                    self.paused_for_inactivity = False
-                    self.last_ai_enrichment = 0.0
-                    print(
-                        f"🔄 Context changed: {self.last_window} -> "
-                        f"{current_window}"
+                # A foreground-context switch ends the current activity.
+                # Returning to the same site later creates a separate session.
+                if self.last_window is None or window_changed:
+                    if window_changed:
+                        if self.active_memory_id is not None:
+                            update_activity_last_seen(
+                                self.active_memory_id,
+                                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            )
+                        self.inactive_memory_count = 0
+                        self.paused_for_inactivity = False
+                        self.last_ai_enrichment = 0.0
+                        print(
+                            f"🔄 Context changed: {self.last_window} -> "
+                            f"{current_window}"
+                        )
+                    self._reset_activity()
+                self.last_window = current_window
+
+                # Keep the activity's end time accurate even when the page is
+                # static and no new OCR sample is needed.
+                if (
+                    self.active_memory_id is not None
+                    and time.time() - self.last_activity_touch >= 15
+                ):
+                    update_activity_last_seen(
+                        self.active_memory_id,
+                        datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     )
+                    self.last_activity_touch = time.time()
 
                 # User activity wakes the recorder immediately.
                 if idle_seconds <= IDLE_THRESHOLD_SECONDS:
@@ -261,32 +329,13 @@ class MemoryRecorder:
                     time.sleep(max(0, CAPTURE_PROBE_SECONDS - elapsed))
                     continue
 
-                if (
-                    self.last_meaningful_capture
-                    and time.time() - self.last_meaningful_capture
-                    < MEMORY_INTERVAL_SECONDS
-                ):
-                    print("⏱️ Screen changed too soon; delaying memory creation.")
-                    self._discard_screenshot(screenshot_path)
-
-                    elapsed = time.time() - cycle_start
-                    time.sleep(max(0, CAPTURE_PROBE_SECONDS - elapsed))
-                    continue
+                # A changed screen is an OCR sample, not automatically a new
+                # memory. Samples from the same uninterrupted activity update
+                # its existing memory record.
 
                 now = datetime.datetime.now().strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
-
-                # --------------------------------------------------
-                # 2. UI CALLBACK
-                # --------------------------------------------------
-
-                if self.callback:
-
-                    try:
-                        self.callback(app, title, now)
-                    except Exception as exc:
-                        print(f"⚠️ UI callback error: {exc}")
 
                 # --------------------------------------------------
                 # 3. ACCESSIBILITY FIRST
@@ -294,15 +343,27 @@ class MemoryRecorder:
 
                 accessibility_text = extract_accessibility_text(hwnd)
 
+                # Run visual OCR for every changed screenshot, even when UI
+                # Automation returns text. Browsers can expose incomplete
+                # accessibility trees, while OCR captures visible conversation
+                # content. Keep both sources in the stored searchable text.
+                print("🔎 Screen changed; running OCR...")
+                visual_ocr_text = extract_text(screenshot_path)
+
                 if accessibility_text:
                     print("♿ Accessibility text extracted.")
-                    ocr_text = accessibility_text
+                if accessibility_text and visual_ocr_text:
+                    ocr_text = (
+                        "ACCESSIBILITY TEXT:\n"
+                        + accessibility_text
+                        + "\n\nVISUAL OCR TEXT:\n"
+                        + visual_ocr_text
+                    )
                 else:
-                    print("🔎 Accessibility unavailable; running OCR...")
-                    ocr_text = extract_text(screenshot_path)
+                    ocr_text = accessibility_text or visual_ocr_text
 
                 # --------------------------------------------------
-                # 4. LOCAL MEMORY FIRST
+                # 4. ONE MEMORY PER CONTINUOUS ACTIVITY
                 # --------------------------------------------------
 
                 local_summary = self._build_local_context(
@@ -311,50 +372,80 @@ class MemoryRecorder:
                     accessibility_text,
                     ocr_text,
                 )
-
+                merged_ocr_text = self._merge_activity_text(ocr_text)
+                activity_started = self.active_memory_id is None
                 keep_screenshot = get_user_setting(self.user_id)
 
                 stored_screenshot = (
-                    screenshot_path if keep_screenshot else ""
+                    screenshot_path if keep_screenshot and activity_started else ""
                 )
 
-                memory_id = create_pending_memory(
-                    self.user_id,
-                    app,
-                    title,
-                    now,
-                    stored_screenshot,
-                )
+                if activity_started:
+                    self.active_activity_id = self.active_activity_id or uuid.uuid4().hex
+                    self.active_activity_started_at = now
+                    memory_id = create_pending_memory(
+                        self.user_id,
+                        app,
+                        title,
+                        now,
+                        stored_screenshot,
+                        activity_id=self.active_activity_id,
+                    )
+                    self.active_memory_id = memory_id
+                    self.last_activity_touch = time.time()
+                else:
+                    memory_id = self.active_memory_id
 
+                activity_summary = (
+                    f"Activity: {title}\n"
+                    f"Application: {app}\n"
+                    f"Started: {self.active_activity_started_at or now}\n"
+                    f"Last observed: {now}\n"
+                    f"Visible text captured during this activity:\n"
+                    f"{merged_ocr_text[:MAX_ACTIVITY_TEXT_CHARS]}"
+                )
+                # The first sample establishes the memory and may be considered
+                # for a thread. Later screen/OCR samples only enrich that record;
+                # they never create memories or increment thread counts.
                 embedding = create_embedding(
-                    local_summary + "\n" + ocr_text
+                    local_summary + "\n" + merged_ocr_text
                 )
 
                 update_memory(
                     memory_id,
-                    local_summary,
-                    ocr_text,
+                    activity_summary,
+                    merged_ocr_text,
                     embedding,
                     0,
                     "",
+                    last_seen=now,
+                    assign_to_thread=activity_started,
                 )
 
-                print(
-                    f"💾 Local memory created: ID {memory_id}"
-                )
+                if activity_started:
+                    if self.callback:
+                        try:
+                            self.callback(app, title, now)
+                        except Exception as exc:
+                            print(f"⚠️ UI callback error: {exc}")
+                    print(f"💾 Activity memory created: ID {memory_id}")
+                else:
+                    print(f"🧩 Updated ongoing activity memory: ID {memory_id}")
 
-                if idle_seconds > IDLE_THRESHOLD_SECONDS:
+                if idle_seconds > IDLE_THRESHOLD_SECONDS and activity_started:
                     self.inactive_memory_count += 1
                     print(
-                        f"😴 Inactive memory stored "
+                        f"😴 Inactive activity stored "
                         f"{self.inactive_memory_count}/{MAX_INACTIVE_MEMORIES}."
                     )
 
                 current_time = time.time()
-                self.last_window = current_window
                 self.last_meaningful_capture = current_time
 
-                if not keep_screenshot:
+                # Screenshots are transient OCR inputs unless the user explicitly
+                # enabled screenshot retention. Only the first image is retained
+                # for a session; subsequent probes are discarded.
+                if not keep_screenshot or not activity_started:
                     self._discard_screenshot(screenshot_path)
 
             except Exception as exc:
@@ -385,6 +476,15 @@ class MemoryRecorder:
     # --------------------------------------------------
 
     def stop(self):
+
+        if self.active_memory_id is not None:
+            try:
+                update_activity_last_seen(
+                    self.active_memory_id,
+                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                )
+            except Exception as exc:
+                print(f"⚠️ Could not finalize activity time range: {exc}")
 
         self.running = False
 

@@ -2,7 +2,6 @@ import customtkinter as ctk
 
 from database.database import create_database
 from ui.auth_page import AuthPage
-from ui.app_window import AppWindow
 
 from session import (
     save_session,
@@ -35,24 +34,14 @@ class Application(ctk.CTk):
         # Make sure database/tables exist.
         create_database()
 
-        # ---------------------------------------------
-        # CHECK TRUSTED DEVICE
-        # ---------------------------------------------
-
+        # Trusted-device login lets the app reopen automatically after
+        # Windows logs the user in, without requiring a daily sign-in.
         trusted_user = validate_trusted_device()
 
         if trusted_user:
-
-            # We have a valid trusted device.
             save_session(trusted_user)
-
-            self.login_success(
-                trusted_user
-            )
-
+            self.login_success(trusted_user)
         else:
-
-            # No valid trusted device.
             self.show_auth()
 
     def show_auth(self):
@@ -68,6 +57,9 @@ class Application(ctk.CTk):
         )
 
     def login_success(self, user):
+        # Load the authenticated workspace only after login is needed.
+        from ui.app_window import AppWindow
+
 
         # Remove AuthPage if it exists.
         if hasattr(self, "auth_page"):
@@ -88,12 +80,24 @@ class Application(ctk.CTk):
             expand=True
         )
 
+        # Start recording automatically after login. This means the user
+        # does not have to press "Start Memory" every day.
+        self.after(
+            500,
+            self.app_window.start_recording_on_launch
+        )
+
     def logout(self):
 
-        # Invalidate trusted device.
-        clear_trusted_device()
+        # Stop recording before destroying the authenticated app window.
+        if hasattr(self, "app_window"):
 
-        # Clear normal session.
+            try:
+                self.app_window.shutdown()
+            except Exception:
+                pass
+
+        clear_trusted_device()
         clear_session()
 
         if hasattr(self, "app_window"):

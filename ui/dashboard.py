@@ -1,7 +1,12 @@
 import threading
 import customtkinter as ctk
+from tkinter import messagebox
+
+from database.database import (
+    get_recording_preferences,
+    set_recording_preferences,
+)
 from ui.floating_recorder import FloatingRecorder
-from memory.recorder import MemoryRecorder
 from ui.chat_panel import ChatPanel
 from ui.theme import (
     BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER,
@@ -18,10 +23,9 @@ class Dashboard(ctk.CTkFrame):
         self.user_id = user_id
         self.username = username
 
-        self.recorder = MemoryRecorder(
-            user_id=self.user_id,
-            callback=self.on_memory_saved
-        )
+        # The OCR/embedding stack is loaded only if recording is enabled.
+        self.recorder = None
+        self._recorder_starting = False
 
         self.floating = None
         self.recording_session = False
@@ -50,14 +54,9 @@ class Dashboard(ctk.CTkFrame):
         )
         subtitle.pack(anchor="w", pady=(3, 0))
 
-        # ---------- MAIN CANVAS ----------
         content = ctk.CTkFrame(self, fg_color="transparent")
         content.pack(fill="both", expand=True, padx=42, pady=(12, 28))
 
-        # LEFT: memory information rail.
-        # Use an explicit themed background instead of transparent here because
-        # CTkScrollableFrame owns an internal canvas/frame that can otherwise
-        # retain the dark default background in Light mode.
         self.left_panel = ctk.CTkScrollableFrame(
             content,
             width=300,
@@ -72,7 +71,6 @@ class Dashboard(ctk.CTkFrame):
             padx=(0, 42)
         )
 
-        # RIGHT: completely flat JARVIS workspace
         self.right_panel = ctk.CTkFrame(
             content,
             fg_color="transparent",
@@ -84,7 +82,6 @@ class Dashboard(ctk.CTkFrame):
             expand=True
         )
 
-        # ---------- LEFT RAIL ----------
         section = ctk.CTkLabel(
             self.left_panel,
             text="MEMORY",
@@ -192,7 +189,6 @@ class Dashboard(ctk.CTkFrame):
         self.timeline.insert("end", "Waiting for activity...")
         self.timeline.configure(state="disabled")
 
-        # ---------- JARVIS ----------
         jarvis_header = ctk.CTkFrame(
             self.right_panel,
             fg_color="transparent"
@@ -238,7 +234,7 @@ class Dashboard(ctk.CTkFrame):
             fg_color=BORDER
         ).pack(fill="x", pady=(20, 12))
 
-        self.chat = ChatPanel(self.right_panel)
+        self.chat = ChatPanel(self.right_panel, user_id=self.user_id)
         self.chat.pack(fill="both", expand=True)
 
     def create_stat_row(self, title, value):
@@ -265,82 +261,169 @@ class Dashboard(ctk.CTkFrame):
         )
         value_label.pack(side="right")
 
+    def start_recording_on_launch(self):
+        """Start only when consent and the separate auto-start option are enabled."""
+        try:
+            preferences = get_recording_preferences(self.user_id)
+            if (
+                preferences["consent"]
+                and preferences["auto_start"]
+                and (self.recorder is None or not self.recorder.running)
+                and not self._recorder_starting
+            ):
+                self.start_memory_recording()
+        except Exception as e:
+            print(f"Automatic recording start failed: {e}")
+
+    def shutdown(self):
+        """Stop background recording and remove the floating window."""
+        self.recording_session = False
+        self._recorder_starting = False
+        try:
+            if self.recorder is not None and self.recorder.running:
+                self.recorder.stop()
+        except Exception as e:
+            print(f"Recorder shutdown failed: {e}")
+        try:
+            self.destroy_floating_recorder()
+        except Exception as e:
+            print(f"Floating recorder shutdown failed: {e}")
+
     def toggle_memory(self):
-        if self.recorder.running:
+        if self._recorder_starting:
+            return
+        if self.recorder is not None and self.recorder.running:
             self.stop_memory_recording()
         else:
             self.start_memory_recording()
 
     def start_memory_recording(self):
-        print("🟢 STARTING MEMORY RECORDING")
+        # All entry points pass through this consent check before capture starts.
+        preferences = get_recording_preferences(self.user_id)
+        if not preferences["consent"]:
+            accepted = messagebox.askyesno(
+                "Enable Second Brain memory recording?",
+                "Second Brain AI can monitor the active application and window "
+                "title, and read visible on-screen text using Windows accessibility "
+                "features and OCR. This text is stored locally to build searchable "
+                "memories. Screenshots are not saved by default. If you choose "
+                "optional cloud AI features, the prompt and relevant context you "
+                "submit may be sent to the configured AI provider.\n\n"
+                "Recording stays off unless you enable it. You can stop it at any "
+                "time and change these choices in Settings. Enable recording now?",
+                icon="warning",
+                parent=self.winfo_toplevel(),
+            )
+            if not accepted:
+                return False
+            set_recording_preferences(
+                self.user_id,
+                consent=True,
+                auto_start=preferences["auto_start"],
+            )
 
-        if self.recorder.running:
-            print("🟢 Memory recorder is already running")
+        if self._recorder_starting:
+            return True
+        if self.recorder is not None and self.recorder.running:
             self.sync_floating_state(True)
             return True
 
         self.recording_session = True
+        self._recorder_starting = True
+        self.start_btn.configure(text="⏳  Starting Memory...")
+        self.status_label.configure(text="Preparing memory engine...", text_color=TEXT_MUTED)
 
-        self.recorder = MemoryRecorder(
-            user_id=self.user_id,
-            callback=self.on_memory_saved
-        )
-
-        self.recorder_thread = threading.Thread(
-            target=self.recorder.start,
-            daemon=True
-        )
-        self.recorder_thread.start()
-
-        self.create_floating_recorder()
-
-        self.start_btn.configure(text="🟢  Recording...")
-        self.status_label.configure(
-            text="🟢 Recording",
-            text_color=SUCCESS
-        )
-
-        self.sync_floating_state(True)
-
-        print("🧠 Floating recorder started")
+        # Importing PyTorch, OCR and embedding libraries can be expensive. Do it
+        # off the UI thread so the window remains responsive during first start.
+        threading.Thread(target=self._load_and_start_recorder, daemon=True).start()
         return True
 
-    def stop_memory_recording(self):
-        print("🔴 STOPPING MEMORY RECORDING")
+    def _load_and_start_recorder(self):
+        try:
+            from memory.recorder import MemoryRecorder
 
-        if not self.recorder.running:
-            print("🔴 Memory recorder is already stopped")
-            self.recording_session = False
+            if not self.recording_session:
+                self.after(0, self._cancel_recorder_start)
+                return
+
+            recorder = MemoryRecorder(
+                user_id=self.user_id,
+                callback=self.on_memory_saved,
+            )
+            self.recorder = recorder
+
+            if not self.recording_session:
+                self.after(0, self._cancel_recorder_start)
+                return
+
+            self.recorder_thread = threading.Thread(
+                target=recorder.start,
+                daemon=True,
+            )
+            self.recorder_thread.start()
+            self.after(0, self._finish_recorder_start)
+        except Exception as exc:
+            print(f"Memory engine failed to load: {type(exc).__name__}: {exc}")
+            try:
+                self.after(0, self._recorder_start_failed, str(exc))
+            except Exception:
+                pass
+
+    def _finish_recorder_start(self):
+        self._recorder_starting = False
+        if not self.recording_session or self.recorder is None:
+            return
+        self.create_floating_recorder()
+        self.start_btn.configure(text="🟢  Recording...")
+        self.status_label.configure(text="🟢 Recording", text_color=SUCCESS)
+        self.sync_floating_state(self.recorder is not None and self.recorder.running)
+        print("Memory recorder started")
+
+    def _cancel_recorder_start(self):
+        self._recorder_starting = False
+        if self.recorder is not None and self.recorder.running:
+            self.recorder.stop()
+        self.start_btn.configure(text="▶  Start Memory")
+        self.status_label.configure(text="🔴 Idle", text_color=TEXT)
+
+    def _recorder_start_failed(self, error):
+        self._recorder_starting = False
+        self.recording_session = False
+        self.start_btn.configure(text="▶  Start Memory")
+        self.status_label.configure(text="🔴 Idle", text_color=TEXT)
+        messagebox.showerror(
+            "Memory engine unavailable",
+            "Second Brain AI could not initialize its recording engine. "
+            "Please restart the app and try again.\n\n" + error,
+            parent=self.winfo_toplevel(),
+        )
+
+    def stop_memory_recording(self):
+        print("Stopping memory recording")
+        self.recording_session = False
+        self._recorder_starting = False
+
+        if self.recorder is None or not self.recorder.running:
             self.sync_floating_state(False)
             self.start_btn.configure(text="▶  Start Memory")
-            self.status_label.configure(
-                text="🔴 Idle",
-                text_color=TEXT
-            )
+            self.status_label.configure(text="🔴 Idle", text_color=TEXT)
             return True
 
-        self.recording_session = False
         self.recorder.stop()
-
         self.sync_floating_state(False)
-
         self.start_btn.configure(text="▶  Start Memory")
-        self.status_label.configure(
-            text="🔴 Idle",
-            text_color=TEXT
-        )
+        self.status_label.configure(text="🔴 Idle", text_color=TEXT)
         self.current_app.configure(text="Current App : -")
         self.current_window.configure(text="Current Window : -")
         self.last_updated.configure(text="Updated : -")
-
-        print("🔴 Recording stopped")
+        print("Recording stopped")
         return True
 
     def create_floating_recorder(self):
         if self.floating is not None:
             try:
                 if self.floating.winfo_exists():
-                    self.sync_floating_state(self.recorder.running)
+                    self.sync_floating_state(self.recorder is not None and self.recorder.running)
                     return
             except Exception:
                 pass
@@ -362,7 +445,7 @@ class Dashboard(ctk.CTkFrame):
 
             self.floating.bind("<Destroy>", self.on_floating_destroyed)
 
-            self.sync_floating_state(self.recorder.running)
+            self.sync_floating_state(self.recorder is not None and self.recorder.running)
 
             print("✅ FloatingRecorder CREATED")
 
@@ -447,7 +530,9 @@ class Dashboard(ctk.CTkFrame):
         self.timeline.configure(state="normal")
         self.timeline.insert(
             "1.0",
-            f"[{timestamp[-8:]}]\n{app}\n{title}\n\n"
+            f"[{timestamp[-8:]}]\n"
+            f"{app}\n"
+            f"{title}\n\n"
         )
         self.timeline.configure(state="disabled")
 

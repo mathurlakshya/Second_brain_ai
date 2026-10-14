@@ -1,0 +1,36 @@
+name: Windows Build
+
+on:
+  push:
+    branches: [launch-hardening]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build application
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/SecondBrainAI/SecondBrainAI.exe")) {
+            throw "Packaged executable was not created."
+          }
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: SecondBrainAI-windows
+          path: dist/SecondBrainAI
+          if-no-files-found: error
