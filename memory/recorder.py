@@ -16,6 +16,7 @@ from database.database import (
     create_pending_memory,
     update_memory,
     get_user_setting,
+    update_activity_last_seen,
 )
 from ai.embeddings import create_embedding
 
@@ -89,6 +90,7 @@ class MemoryRecorder:
         self.active_activity_started_at = None
         self.active_activity_text = ""
         self.active_activity_blocks = set()
+        self.last_activity_touch = 0.0
 
         self.processing_pool = ThreadPoolExecutor(max_workers=1)
 
@@ -241,6 +243,11 @@ class MemoryRecorder:
                 # Returning to the same site later creates a separate session.
                 if self.last_window is None or window_changed:
                     if window_changed:
+                        if self.active_memory_id is not None:
+                            update_activity_last_seen(
+                                self.active_memory_id,
+                                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            )
                         self.inactive_memory_count = 0
                         self.paused_for_inactivity = False
                         self.last_ai_enrichment = 0.0
@@ -250,6 +257,18 @@ class MemoryRecorder:
                         )
                     self._reset_activity()
                 self.last_window = current_window
+
+                # Keep the activity's end time accurate even when the page is
+                # static and no new OCR sample is needed.
+                if (
+                    self.active_memory_id is not None
+                    and time.time() - self.last_activity_touch >= 15
+                ):
+                    update_activity_last_seen(
+                        self.active_memory_id,
+                        datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    )
+                    self.last_activity_touch = time.time()
 
                 # User activity wakes the recorder immediately.
                 if idle_seconds <= IDLE_THRESHOLD_SECONDS:
@@ -378,6 +397,7 @@ class MemoryRecorder:
                         activity_id=self.active_activity_id,
                     )
                     self.active_memory_id = memory_id
+                    self.last_activity_touch = time.time()
                 else:
                     memory_id = self.active_memory_id
 
@@ -456,6 +476,15 @@ class MemoryRecorder:
     # --------------------------------------------------
 
     def stop(self):
+
+        if self.active_memory_id is not None:
+            try:
+                update_activity_last_seen(
+                    self.active_memory_id,
+                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                )
+            except Exception as exc:
+                print(f"⚠️ Could not finalize activity time range: {exc}")
 
         self.running = False
 
