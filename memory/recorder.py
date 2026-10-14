@@ -86,6 +86,7 @@ class MemoryRecorder:
         # One database memory represents one uninterrupted app/window activity.
         self.active_memory_id = None
         self.active_activity_id = None
+        self.active_activity_started_at = None
         self.active_activity_text = ""
         self.active_activity_blocks = set()
 
@@ -202,6 +203,7 @@ class MemoryRecorder:
         """Start a new activity session after the foreground context changes."""
         self.active_memory_id = None
         self.active_activity_id = uuid.uuid4().hex
+        self.active_activity_started_at = None
         self.active_activity_text = ""
         self.active_activity_blocks.clear()
 
@@ -366,6 +368,7 @@ class MemoryRecorder:
 
                 if activity_started:
                     self.active_activity_id = self.active_activity_id or uuid.uuid4().hex
+                    self.active_activity_started_at = now
                     memory_id = create_pending_memory(
                         self.user_id,
                         app,
@@ -381,7 +384,7 @@ class MemoryRecorder:
                 activity_summary = (
                     f"Activity: {title}\n"
                     f"Application: {app}\n"
-                    f"Started: {now if activity_started else ''}\n"
+                    f"Started: {self.active_activity_started_at or now}\n"
                     f"Last observed: {now}\n"
                     f"Visible text captured during this activity:\n"
                     f"{merged_ocr_text[:MAX_ACTIVITY_TEXT_CHARS]}"
