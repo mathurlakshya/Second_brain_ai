@@ -114,7 +114,7 @@ def test_memory_search_returns_clear_result_when_no_matches(monkeypatch):
     assert result == "I couldn't find any matching recorded memories."
 
 
-def test_jarvis_checks_memories_before_general_chat(monkeypatch):
+def test_jarvis_checks_memories_internally_then_answers_general_question(monkeypatch):
     import ai.jarvis_router as router
     import ai.gemini as gemini
 
@@ -136,8 +136,8 @@ def test_jarvis_checks_memories_before_general_chat(monkeypatch):
         ("memory", "Explain recursion", 7),
         ("general", "Explain recursion"),
     ]
-    assert "general question" in result.lower()
-    assert result.endswith("General answer.")
+    assert result == "General answer."
+    assert "memory" not in result.lower()
 
 
 def test_jarvis_uses_local_memory_answer_without_gemini(monkeypatch):
@@ -159,7 +159,7 @@ def test_jarvis_uses_local_memory_answer_without_gemini(monkeypatch):
     )
 
 
-def test_jarvis_explains_missing_gemini_only_after_memory_miss(monkeypatch):
+def test_jarvis_explains_missing_general_ai_configuration_without_memory_narration(monkeypatch):
     import ai.jarvis_router as router
     import ai.gemini as gemini
 
@@ -175,7 +175,8 @@ def test_jarvis_explains_missing_gemini_only_after_memory_miss(monkeypatch):
 
     assert calls == [("Explain recursion", 7)]
     assert "GEMINI_API_KEY" in result
-    assert "memory search still work locally" in result
+    assert "General AI answers aren't configured yet." in result
+    assert "recorded memor" not in result.lower()
 
 
 def test_quota_error_shows_simple_retry_time_without_provider_details():
