@@ -90,6 +90,7 @@ class MemoryRecorder:
         self.active_activity_started_at = None
         self.active_activity_text = ""
         self.active_activity_blocks = set()
+        self.active_activity_block_order = []
         self.last_activity_touch = 0.0
 
         self.processing_pool = ThreadPoolExecutor(max_workers=1)
@@ -194,6 +195,10 @@ class MemoryRecorder:
             return self.active_activity_text
 
         self.active_activity_blocks.add(fingerprint)
+        self.active_activity_block_order.append(fingerprint)
+        if len(self.active_activity_block_order) > MAX_ACTIVITY_TEXT_BLOCKS:
+            expired = self.active_activity_block_order.pop(0)
+            self.active_activity_blocks.discard(expired)
         blocks = self.active_activity_text.split("\n\n") if self.active_activity_text else []
         blocks.append(cleaned)
         blocks = blocks[-MAX_ACTIVITY_TEXT_BLOCKS:]
@@ -208,6 +213,7 @@ class MemoryRecorder:
         self.active_activity_started_at = None
         self.active_activity_text = ""
         self.active_activity_blocks.clear()
+        self.active_activity_block_order.clear()
 
     # --------------------------------------------------
     # START
