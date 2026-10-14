@@ -22,7 +22,7 @@ def test_database_initializes_with_wal_and_schema(isolated_db):
     conn = sqlite3.connect(isolated_db)
     try:
         assert conn.execute("PRAGMA journal_mode").fetchone()[0].lower() == "wal"
-        assert conn.execute("PRAGMA user_version").fetchone()[0] == 2
+        assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
         columns = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
         assert "password_hash" in columns
         assert "password" not in columns
@@ -201,3 +201,64 @@ def test_quota_error_without_retry_delay_is_still_simple():
 
     assert message == "You've exceeded your usage limits. Please try again later."
     assert "Gemini" not in message
+
+
+def test_continuous_activity_updates_one_memory_and_tracks_end_time(isolated_db):
+    memory_id = db.create_pending_memory(
+        1,
+        "chrome.exe",
+        "YouTube - Example video",
+        "2026-10-14 14:10:00",
+        activity_id="single-video-session",
+    )
+
+    db.update_memory(
+        memory_id,
+        "Watching a video",
+        "First caption",
+        [],
+        last_seen="2026-10-14 14:10:05",
+        assign_to_thread=False,
+    )
+    db.update_memory(
+        memory_id,
+        "Watching a video",
+        "First caption\\n\\nSecond caption",
+        [],
+        last_seen="2026-10-14 14:40:00",
+        assign_to_thread=False,
+    )
+
+    conn = sqlite3.connect(isolated_db)
+    try:
+        rows = conn.execute(
+            "SELECT timestamp, last_seen, activity_id, ocr_text FROM memories WHERE user_id = ?",
+            (1,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    assert len(rows) == 1
+    assert rows[0][0] == "2026-10-14 14:10:00"
+    assert rows[0][1] == "2026-10-14 14:40:00"
+    assert rows[0][2] == "single-video-session"
+    assert "Second caption" in rows[0][3]
+
+
+def test_thought_threads_count_repeated_activity_sessions_not_screenshots():
+    from memory.thought_threads import _count_context_sessions
+
+    repeated_site_sessions = [
+        (1, "2026-10-14 14:00:00", "chrome.exe", "YouTube", "summary", "[]", "visit-a"),
+        (2, "2026-10-14 14:15:00", "chrome.exe", "YouTube", "summary", "[]", "visit-b"),
+        (3, "2026-10-14 14:30:00", "chrome.exe", "YouTube", "summary", "[]", "visit-c"),
+    ]
+    assert _count_context_sessions(repeated_site_sessions) == 3
+
+    # Legacy screenshot rows without activity IDs are grouped by contiguous context.
+    legacy_screenshots = [
+        (4, "2026-10-14 14:00:00", "chrome.exe", "YouTube", "summary", "[]"),
+        (5, "2026-10-14 14:00:02", "chrome.exe", "YouTube", "summary", "[]"),
+        (6, "2026-10-14 14:00:04", "chrome.exe", "YouTube", "summary", "[]"),
+    ]
+    assert _count_context_sessions(legacy_screenshots) == 1
