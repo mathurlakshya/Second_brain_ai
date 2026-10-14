@@ -332,17 +332,6 @@ class MemoryRecorder:
                 )
 
                 # --------------------------------------------------
-                # 2. UI CALLBACK
-                # --------------------------------------------------
-
-                if self.callback:
-
-                    try:
-                        self.callback(app, title, now)
-                    except Exception as exc:
-                        print(f"⚠️ UI callback error: {exc}")
-
-                # --------------------------------------------------
                 # 3. ACCESSIBILITY FIRST
                 # --------------------------------------------------
 
@@ -428,6 +417,11 @@ class MemoryRecorder:
                 )
 
                 if activity_started:
+                    if self.callback:
+                        try:
+                            self.callback(app, title, now)
+                        except Exception as exc:
+                            print(f"⚠️ UI callback error: {exc}")
                     print(f"💾 Activity memory created: ID {memory_id}")
                 else:
                     print(f"🧩 Updated ongoing activity memory: ID {memory_id}")
