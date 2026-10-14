@@ -423,7 +423,7 @@ class Dashboard(ctk.CTkFrame):
         if self.floating is not None:
             try:
                 if self.floating.winfo_exists():
-                    self.sync_floating_state(self.recorder.running)
+                    self.sync_floating_state(self.recorder is not None and self.recorder.running)
                     return
             except Exception:
                 pass
@@ -445,7 +445,7 @@ class Dashboard(ctk.CTkFrame):
 
             self.floating.bind("<Destroy>", self.on_floating_destroyed)
 
-            self.sync_floating_state(self.recorder.running)
+            self.sync_floating_state(self.recorder is not None and self.recorder.running)
 
             print("✅ FloatingRecorder CREATED")
 
