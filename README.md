@@ -13,7 +13,9 @@ Second Brain AI is a Windows desktop second-brain application that records local
 - Local SQLite memory storage
 - Local SentenceTransformer embeddings
 - Semantic search
-- Thought Threads
+- Activity-based memory deduplication: changed screens enrich one ongoing activity record instead of creating a memory per screenshot
+- Activity start/end timestamps, including updates while the screen is static
+- Thought Threads formed from repeated, related activity sessions rather than screenshot volume
 
 ### Cloud only when explicitly requested
 Gemini is used for:
@@ -72,6 +74,8 @@ Then build the installer with Inno Setup using `installer.iss`.
 - Verify recording with screenshots disabled.
 - Verify screenshot retention when explicitly enabled.
 - Verify memory export and deletion.
+- Verify one long video/page session creates one memory with a start/end time range.
+- Verify repeated visits to the same site become separate activity sessions and can form a related Thought Thread.
 - Verify the app works without `GEMINI_API_KEY`.
 - Verify explicit Gemini features with a valid key.
 - Test idle/resume behavior.
