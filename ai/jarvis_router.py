@@ -17,8 +17,7 @@ def _memory_answer_is_insufficient(answer):
 def _configuration_help():
     """Explain how to enable cloud chat without blocking local memory retrieval."""
     return (
-        "I couldn't find a matching recorded memory, and JARVIS's AI engine "
-        "isn't configured for general questions yet. Core recording and memory "
+        "General AI answers aren't configured yet. Core recording and memory "
         "search still work locally.\n\n"
         "To enable general AI answers, create or edit this file:\n"
         "%LOCALAPPDATA%\\SecondBrainAI\\.env\n\n"
@@ -28,10 +27,10 @@ def _configuration_help():
 
 
 def ask_jarvis_unified(question, user_id):
-    """Search local memories first; use Gemini only for general-answer fallback."""
+    """Use relevant memories when available; otherwise answer as general chat."""
     from ai.gemini import is_gemini_available
 
-    # Local memory search must work even when the optional cloud AI is disabled.
+    # Search local memory first, but keep retrieval decisions invisible to the user.
     from ai.thought_thread_chat import ask_memory_thread_chat
 
     memory_answer = ask_memory_thread_chat(question, user_id)
@@ -43,25 +42,18 @@ def ask_jarvis_unified(question, user_id):
     ):
         return memory_answer
 
-    # Preserve useful local retrieval results even without an API key. When
-    # Gemini is available, the memory helper returns a grounded natural answer;
-    # without it, it returns a local list of matching memories.
+    # If retrieval produces a useful answer, preserve it. Otherwise answer the
+    # user's question normally without narrating the internal memory check.
     if not _memory_answer_is_insufficient(memory_answer):
         return memory_answer
 
     if not is_gemini_available():
         return _configuration_help()
 
-    # No relevant recorded memory was found. Treat the message as a general
-    # question, while being transparent that this answer is not a recollection.
     from ai.gemini import ask_jarvis
 
     general_answer = ask_jarvis(question)
     if not general_answer:
         general_answer = "I couldn't generate a response right now."
 
-    return (
-        "I checked your recorded memories but couldn't find enough relevant "
-        "information to answer from them. Answering this as a general question:\n\n"
-        + general_answer
-    )
+    return general_answer
