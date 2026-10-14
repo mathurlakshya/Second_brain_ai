@@ -55,7 +55,7 @@ class MemoryPage(ctk.CTkFrame):
         try:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            rows = cursor.execute("""SELECT timestamp, app_name, window_title FROM memories WHERE user_id = ? ORDER BY id DESC LIMIT 100""", (self.user_id,)).fetchall()
+            rows = cursor.execute("""SELECT timestamp, COALESCE(last_seen, timestamp), app_name, window_title FROM memories WHERE user_id = ? ORDER BY id DESC LIMIT 100""", (self.user_id,)).fetchall()
             conn.close()
         except sqlite3.Error as e:
             self.memory_box.insert("end", f"Could not load memories.\n\n{e}")
@@ -69,10 +69,11 @@ class MemoryPage(ctk.CTkFrame):
             self.memory_box.configure(state="disabled")
             return
 
-        for index, (timestamp, app, title) in enumerate(rows):
+        for index, (timestamp, last_seen, app, title) in enumerate(rows):
             if index:
                 self.memory_box.insert("end", "\n" + "─" * 72 + "\n\n")
-            self.memory_box.insert("end", f"{timestamp}\n", ("time",))
+            time_range = timestamp if not last_seen or last_seen == timestamp else f"{timestamp}  →  {last_seen}"
+            self.memory_box.insert("end", f"{time_range}\n", ("time",))
             self.memory_box.insert("end", f"{app}\n", ("app",))
             self.memory_box.insert("end", f"{title}\n", ("title",))
 
