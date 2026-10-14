@@ -99,11 +99,12 @@ def _context_key(app, window_title):
 
 
 def _count_context_sessions(rows, current_row=None):
-    """Count contiguous app/window sessions represented by memory rows.
+    """Count activity sessions, preferring explicit recorder session IDs.
 
-    Rows may be supplied in newest-first order. A session is a contiguous run
-    of the same normalized foreground app/window. Returning to an old context
-    therefore creates a new session even if the title is identical.
+    New recorder data has one row per activity and a unique activity_id, so
+    returning to the same site later counts as another session. Legacy rows
+    without IDs use contiguous app/window context runs to avoid treating every
+    historical screenshot as a separate visit.
     """
     ordered = sorted(rows, key=lambda row: row[1] or "")
     if current_row is not None and all(row[0] != current_row[0] for row in ordered):
@@ -113,9 +114,18 @@ def _count_context_sessions(rows, current_row=None):
     if not ordered:
         return 0
 
-    sessions = 0
+    activity_ids = {
+        row[6] for row in ordered
+        if len(row) > 6 and row[6]
+    }
+    legacy_rows = [
+        row for row in ordered
+        if not (len(row) > 6 and row[6])
+    ]
+
+    sessions = len(activity_ids)
     previous_context = None
-    for row in ordered:
+    for row in legacy_rows:
         context = _context_key(row[2], row[3])
         if context != previous_context:
             sessions += 1
@@ -189,7 +199,7 @@ def _find_repeated_memory_group(cursor, user_id, current_time, current_vector):
     time. The important anti-false-positive condition is that the matching
     activity appears in at least two context sessions.
     """
-    cursor.execute("""SELECT id, timestamp, app_name, window_title, summary, embedding
+    cursor.execute("""SELECT id, timestamp, app_name, window_title, summary, embedding, activity_id
         FROM memories
         WHERE user_id = ? AND thread_id IS NULL
           AND embedding IS NOT NULL AND embedding != ''
@@ -235,9 +245,14 @@ def assign_memory_to_thread(memory_id, user_id, app, window_title, timestamp, su
         cursor = conn.cursor()
         current_time = datetime.fromisoformat(timestamp)
         now = _now()
+        activity_row = cursor.execute(
+            "SELECT activity_id FROM memories WHERE id = ? AND user_id = ?",
+            (memory_id, user_id),
+        ).fetchone()
+        activity_id = activity_row[0] if activity_row else None
         current_row = (
             memory_id, timestamp, app, window_title, summary,
-            json.dumps(vector.tolist()),
+            json.dumps(vector.tolist()), activity_id,
         )
 
         # Existing threads continue normally. Once a real thread exists,
@@ -329,14 +344,14 @@ def rebuild_threads(user_id):
         cursor = conn.cursor()
         cursor.execute("DELETE FROM thought_threads WHERE user_id = ?", (user_id,))
         cursor.execute("UPDATE memories SET thread_id = NULL WHERE user_id = ?", (user_id,))
-        cursor.execute("""SELECT id, timestamp, app_name, window_title, summary, embedding
+        cursor.execute("""SELECT id, timestamp, app_name, window_title, summary, embedding, activity_id
             FROM memories WHERE user_id = ? AND embedding IS NOT NULL AND embedding != ''
             ORDER BY id ASC""", (user_id,))
         memories = cursor.fetchall()
     finally:
         conn.close()
 
-    for memory_id, timestamp, app, title, summary, embedding_json in memories:
+    for memory_id, timestamp, app, title, summary, embedding_json, activity_id in memories:
         embedding = _parse_embedding(embedding_json)
         if embedding is not None:
             try:
