@@ -2,7 +2,6 @@ import customtkinter as ctk
 
 from database.database import create_database
 from ui.auth_page import AuthPage
-from ui.app_window import AppWindow
 
 from session import (
     save_session,
@@ -58,6 +57,9 @@ class Application(ctk.CTk):
         )
 
     def login_success(self, user):
+        # Load the authenticated workspace only after login is needed.
+        from ui.app_window import AppWindow
+
 
         # Remove AuthPage if it exists.
         if hasattr(self, "auth_page"):
