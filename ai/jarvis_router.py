@@ -1,4 +1,4 @@
-"""Route dashboard JARVIS messages through memory retrieval and general AI."""
+"""Route dashboard JARVIS messages to memory search only when requested."""
 
 _NO_MEMORY_MARKERS = (
     "i couldn't find any matching recorded memories",
@@ -6,6 +6,52 @@ _NO_MEMORY_MARKERS = (
     "i could not find enough information in your recorded memories",
     "i couldn't find a matching recorded memory",
 )
+
+# Keep ordinary requests (coding help, explanations, writing, etc.) in normal
+# chat. The old router searched memory for every prompt and returned its result
+# whenever any semantically similar recording existed, making unrelated chat
+# look like a list of "relevant memories".
+_MEMORY_INTENT_PHRASES = (
+    "remember when",
+    "remember what",
+    "search my memor",
+    "my memor",
+    "recorded memor",
+    "my past work",
+    "my previous work",
+    "my recent work",
+    "my work history",
+    "my browsing history",
+    "from my history",
+    "what was i working on",
+    "what was i doing",
+    "what did i do",
+    "what did i open",
+    "what did i search",
+    "what did i watch",
+    "what did i write",
+    "what did i say",
+    "what did we discuss",
+    "where did i save",
+    "where did i find",
+    "where did i see",
+    "when did i",
+    "which app did i",
+    "which website did i",
+    "which site did i",
+    "what was on my screen",
+    "what was on my computer",
+    "last time",
+    "yesterday",
+    "last week",
+    "earlier today",
+)
+
+
+def _is_memory_question(question):
+    """Return True only for prompts that explicitly ask about personal history."""
+    normalized = (question or "").strip().lower()
+    return any(phrase in normalized for phrase in _MEMORY_INTENT_PHRASES)
 
 
 def _memory_answer_is_insufficient(answer):
@@ -27,26 +73,27 @@ def _configuration_help():
 
 
 def ask_jarvis_unified(question, user_id):
-    """Use relevant memories when available; otherwise answer as general chat."""
+    """Use memory retrieval for personal-history questions, not every prompt."""
     from ai.gemini import is_gemini_available
 
-    # Search local memory first, but keep retrieval decisions invisible to the user.
-    from ai.thought_thread_chat import ask_memory_thread_chat
+    if _is_memory_question(question):
+        from ai.thought_thread_chat import ask_memory_thread_chat
 
-    memory_answer = ask_memory_thread_chat(question, user_id)
+        memory_answer = ask_memory_thread_chat(question, user_id)
 
-    # A quota/service error is not a retrieval miss; don't waste another API call.
-    if memory_answer and (
-        "you've exceeded your usage limits" in memory_answer.lower()
-        or "couldn't respond right now" in memory_answer.lower()
-    ):
-        return memory_answer
+        # A quota/service error is not a retrieval miss; don't make another call.
+        if memory_answer and (
+            "you've exceeded your usage limits" in memory_answer.lower()
+            or "couldn't respond right now" in memory_answer.lower()
+        ):
+            return memory_answer
 
-    # If retrieval produces a useful answer, preserve it. Otherwise answer the
-    # user's question normally without narrating the internal memory check.
-    if not _memory_answer_is_insufficient(memory_answer):
-        return memory_answer
+        # For an explicit memory question, return a useful retrieval result.
+        if not _memory_answer_is_insufficient(memory_answer):
+            return memory_answer
 
+    # Normal prompts go straight to general chat. A memory-search miss must not
+    # cause a general answer to be framed as if it came from recorded history.
     if not is_gemini_available():
         return _configuration_help()
 
