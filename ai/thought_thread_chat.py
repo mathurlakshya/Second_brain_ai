@@ -64,10 +64,78 @@ def _find_keyword_memories(question, user_id, limit=8):
             for timestamp, app, title, summary, ocr in rows]
 
 
+def _is_latest_memory_question(question):
+    """Recognize requests for the newest recorded computer activity."""
+    normalized = (question or "").strip().lower()
+    latest_markers = (
+        "last memory",
+        "latest memory",
+        "most recent memory",
+        "memory i made",
+        "memory i created",
+        "memory i have made",
+        "last thing recorded",
+        "most recent thing i did",
+        "latest thing i did",
+    )
+    return any(marker in normalized for marker in latest_markers)
+
+
+def _answer_with_latest_memory(user_id):
+    """Return the newest saved memory directly, rather than a similarity match."""
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute(
+            """
+            SELECT timestamp, app_name, window_title, summary, ocr_text
+            FROM memories
+            WHERE user_id = ?
+            ORDER BY timestamp DESC, id DESC
+            LIMIT 1
+            """,
+            (user_id,),
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc).lower() or "no such column" in str(exc).lower():
+            return None
+        raise
+    finally:
+        conn.close()
+
+    if not row:
+        return None
+
+    timestamp, app, title, summary, ocr = row
+    details = (summary or ocr or "").strip()
+    if len(details) > 700:
+        details = details[:697].rstrip() + "..."
+
+    lines = ["Your most recently recorded computer memory:"]
+    if timestamp:
+        lines.append(f"Time: {timestamp}")
+    if app:
+        lines.append(f"Application: {app}")
+    if title:
+        lines.append(f"Window: {title}")
+    if details:
+        lines.extend(["", f"Details: {details}"])
+    else:
+        lines.extend(["", "No summary or screen text was saved for this memory."])
+    return "\\n".join(lines)
+
+
 def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread=8):
     """Answer from all stored memories, using Thought Threads as extra context."""
     if user_id is None:
         return "Memory search requires an authenticated user."
+
+    # "Last/latest memory" is a chronological question, not a semantic-search
+    # question. Fetch the newest record directly so similar older memories
+    # cannot be mistaken for the latest activity.
+    if _is_latest_memory_question(question):
+        latest_answer = _answer_with_latest_memory(user_id)
+        if latest_answer:
+            return latest_answer
 
     # Semantic search scores every embedded memory for this user, not just
     # threaded ones. Add lexical matches so exact terms such as game/site names
