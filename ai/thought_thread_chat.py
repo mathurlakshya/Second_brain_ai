@@ -77,6 +77,14 @@ def _is_latest_memory_question(question):
         "last thing recorded",
         "most recent thing i did",
         "latest thing i did",
+        "last work i did",
+        "last work i was doing",
+        "brief me about the last work",
+        "brief me on my last work",
+        "last activity on my computer",
+        "last thing i did on my computer",
+        "what was my last activity",
+        "what did i last work on",
     )
     return any(marker in normalized for marker in latest_markers)
 
@@ -110,7 +118,7 @@ def _answer_with_latest_memory(user_id):
     if len(details) > 700:
         details = details[:697].rstrip() + "..."
 
-    lines = ["Your most recently recorded computer memory:"]
+    lines = ["Your most recently recorded computer activity (based on saved memory):"]
     if timestamp:
         lines.append(f"Time: {timestamp}")
     if app:
