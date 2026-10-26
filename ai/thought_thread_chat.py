@@ -85,6 +85,16 @@ def _is_latest_memory_question(question):
         "last thing i did on my computer",
         "what was my last activity",
         "what did i last work on",
+        "activity i did",
+        "tell me the activity i did",
+        "can u tell the activity",
+        "can you tell the activity",
+        "what activity did i do",
+        "what activity was i doing",
+        "tell me what i did",
+        "can u tell me what i did",
+        "can you tell me what i did",
+        "tell me about my activity",
     )
     return any(marker in normalized for marker in latest_markers)
 
@@ -129,7 +139,7 @@ def _answer_with_latest_memory(user_id):
         lines.extend(["", f"Details: {details}"])
     else:
         lines.extend(["", "No summary or screen text was saved for this memory."])
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread=8):
