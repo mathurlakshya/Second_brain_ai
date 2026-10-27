@@ -13,18 +13,31 @@ def _memory_key(memory):
     return (timestamp or "", app or "", title or "")
 
 
-def _find_keyword_memories(question, user_id, limit=8):
-    """Find exact/lexical matches too, including memories without embeddings."""
+def _find_keyword_memories(question, user_id, limit=12):
+    """Find memories by text even when embedding generation/indexing is unavailable."""
+    stopwords = {
+        "what", "when", "where", "which", "with", "from", "that", "this",
+        "have", "about", "show", "tell", "find", "remember", "memory",
+        "memories", "please", "could", "would", "were", "was", "the", "and",
+        "did", "does", "do", "for", "you", "your", "my", "me", "between",
+        "last", "topic", "conversation", "previous", "recent", "just", "can",
+        "u", "i", "on", "in", "of", "to", "it", "is", "are",
+    }
     words = list(dict.fromkeys(
-        token for token in re.findall(r"[a-zA-Z0-9_-]{3,}", question.lower())
-        if token not in {
-            "what", "when", "where", "which", "with", "from", "that", "this",
-            "have", "about", "show", "tell", "find", "remember", "memory",
-            "memories", "please", "could", "would", "were", "was", "the",
-        }
+        token for token in re.findall(r"[a-zA-Z0-9_-]{3,}", (question or "").lower())
+        if token not in stopwords
     ))
     if not words or user_id is None:
         return []
+
+    # Expand common ways people refer to the same subject.
+    expanded = list(words)
+    joined = " ".join(words)
+    if "llm" in joined or "llms" in joined or "language model" in joined:
+        expanded.extend(["llm", "llms", "large language model", "large language models"])
+    if "chatgpt" in joined or "chat gpt" in joined:
+        expanded.extend(["chatgpt", "chat gpt", "openai"])
+    words = list(dict.fromkeys(expanded))
 
     clauses = []
     params = [user_id]
@@ -43,26 +56,27 @@ def _find_keyword_memories(question, user_id, limit=8):
         FROM memories
         WHERE user_id = ? AND (""" + " OR ".join(clauses) + """)
         ORDER BY timestamp DESC
-        LIMIT ?
+        LIMIT 500
     """
-    params.append(limit)
-
     conn = sqlite3.connect(DB_PATH)
     try:
         rows = conn.execute(sql, params).fetchall()
     except sqlite3.OperationalError as exc:
-        # First-run setups and tests may not have initialized the memories table.
         if "no such table" in str(exc).lower() or "no such column" in str(exc).lower():
             return []
         raise
     finally:
         conn.close()
 
-    # Match the tuple shape returned by semantic_search. A neutral score keeps
-    # lexical-only results usable even when their embedding is missing/poor.
-    return [(0.5, timestamp, app, title, summary, ocr)
-            for timestamp, app, title, summary, ocr in rows]
-
+    # Rank by how many query concepts occur in the record, then by recency.
+    scored = []
+    for timestamp, app, title, summary, ocr in rows:
+        searchable = " ".join((app or "", title or "", summary or "", ocr or "")).lower()
+        score = sum(1 for word in words if word in searchable)
+        scored.append((score, timestamp or "", app or "", title or "", summary or "", ocr or ""))
+    scored.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    return [(min(0.99, 0.5 + score / max(1, len(words)) * 0.49), timestamp, app, title, summary, ocr)
+            for score, timestamp, app, title, summary, ocr in scored[:limit]]
 
 def _is_latest_memory_question(question):
     """Recognize requests for the newest recorded computer activity."""
@@ -190,12 +204,18 @@ def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread
     # Semantic search scores every embedded memory for this user, not just
     # threaded ones. Add lexical matches so exact terms such as game/site names
     # still work when embeddings are weak or a memory has no embedding.
-    semantic_hits = semantic_search(question, user_id=user_id, limit=12)
+    # Run lexical retrieval first so useful OCR records remain searchable even
+    # if the local embedding model is missing, slow, or fails to initialize.
     keyword_hits = _find_keyword_memories(question, user_id=user_id, limit=12)
+    try:
+        semantic_hits = semantic_search(question, user_id=user_id, limit=12)
+    except Exception as exc:
+        print(f"⚠️ Semantic memory search unavailable; using text search: {type(exc).__name__}: {exc}")
+        semantic_hits = []
 
     hits = []
     seen = set()
-    for hit in semantic_hits + keyword_hits:
+    for hit in keyword_hits + semantic_hits:
         key = _memory_key(hit)
         if key not in seen:
             seen.add(key)
@@ -273,8 +293,7 @@ collection, including memories that do not belong to a Thought Thread, plus
 related thread context when available. Search all supplied context; do not
 restrict your answer to Thought Threads.
 
-Use only evidence in the context. If the memories do not support an answer,
-say: "I couldn't find enough information in your recorded memories."
+Answer from the supplied saved memories, including OCR/screen text. If the question asks what the user learned or discussed, infer the topic only when the captured text supports it. If no matching record supports an answer, say: "I couldn't find enough information in your recorded memories." Do not claim that memories are inaccessible when retrieval returned records.
 
 Recorded Memory Context:
 {memory_context}
