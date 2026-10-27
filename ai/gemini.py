@@ -191,6 +191,9 @@ Previous Conversation:
 User:
 
 {question}
+
+Response length: Be concise by default (1–4 sentences or a few short bullets).
+Only provide a long explanation, detailed steps, or a tutorial when the user asks.
 """
 
     print("🚀 Sending request to Gemini...")
@@ -280,7 +283,7 @@ understand what it represents.
 If a slide is visible,
 summarize it.
 
-Return a detailed explanation of everything you understand.
+Return a concise summary of the key visible information. Keep it short unless the user asks for detail.
 
 This analysis will later be used to answer user questions.
 """
@@ -411,7 +414,7 @@ Rules:
 - If there is an MCQ, explain why the correct answer is correct.
 - If there is a table, analyze it.
 
-Be detailed and educational.
+Be concise by default (1–4 sentences or a few short bullets). Expand only when the user explicitly asks for detail, steps, or a walkthrough.
 """
 
     try:
@@ -478,6 +481,8 @@ Answer ONLY using these memories.
 Question:
 
 {question}
+
+Answer briefly and directly by default. Only give a long explanation when the user asks for one.
 """
 
     try:
@@ -603,7 +608,7 @@ User Question:
 
 {question}
 
-Give a detailed, easy-to-read answer.
+Answer in 1–4 sentences or a few short bullets by default. Be longer only if the user explicitly requests detail.
 """
 
     try:
