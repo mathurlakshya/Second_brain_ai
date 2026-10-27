@@ -127,21 +127,22 @@ def ask_jarvis_unified(question, user_id):
     if _is_memory_question(question):
         from ai.thought_thread_chat import ask_memory_thread_chat
 
-        memory_answer = ask_memory_thread_chat(question, user_id)
+        try:
+            memory_answer = ask_memory_thread_chat(question, user_id)
+        except Exception as exc:
+            print(f"Memory retrieval failed: {type(exc).__name__}: {exc}")
+            return "I couldn't search your saved memories right now. Please try again."
 
-        # A quota/service error is not a retrieval miss; don't make another call.
         if memory_answer and (
             "you've exceeded your usage limits" in memory_answer.lower()
             or "couldn't respond right now" in memory_answer.lower()
         ):
             return memory_answer
 
-        # For an explicit memory question, return a useful retrieval result.
-        if not _memory_answer_is_insufficient(memory_answer):
-            return memory_answer
+        if _memory_answer_is_insufficient(memory_answer):
+            return "I couldn't find a matching saved memory for that question."
+        return memory_answer
 
-    # Normal prompts go straight to general chat. A memory-search miss must not
-    # cause a general answer to be framed as if it came from recorded history.
     if not is_gemini_available():
         return _configuration_help()
 
