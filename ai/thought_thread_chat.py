@@ -100,7 +100,7 @@ def _is_latest_memory_question(question):
 
 
 def _answer_with_latest_memory(user_id):
-    """Return the newest saved memory directly, rather than a similarity match."""
+    """Return the newest completed memory; never present a placeholder as activity."""
     conn = sqlite3.connect(DB_PATH)
     try:
         row = conn.execute(
@@ -108,39 +108,71 @@ def _answer_with_latest_memory(user_id):
             SELECT timestamp, app_name, window_title, summary, ocr_text
             FROM memories
             WHERE user_id = ?
+              AND LOWER(TRIM(COALESCE(summary, ''))) NOT IN ('processing...', '')
+              AND (
+                  TRIM(COALESCE(summary, '')) != ''
+                  OR TRIM(COALESCE(ocr_text, '')) != ''
+              )
             ORDER BY timestamp DESC, id DESC
             LIMIT 1
             """,
             (user_id,),
         ).fetchone()
+
+        # If no completed memory exists, report the newest incomplete record
+        # honestly rather than telling the user that "Processing..." is the task.
+        if not row:
+            row = conn.execute(
+                """
+                SELECT timestamp, app_name, window_title, summary, ocr_text
+                FROM memories
+                WHERE user_id = ?
+                ORDER BY timestamp DESC, id DESC
+                LIMIT 1
+                """,
+                (user_id,),
+            ).fetchone()
+            if not row:
+                return "I couldn't find any saved computer activity yet."
+
+            timestamp, app, title, summary, ocr = row
+            lines = ["I couldn't find a completed activity record yet."]
+            if app or title:
+                lines.append("Last record: " + " — ".join(
+                    value for value in (app, title) if value
+                ))
+            if timestamp:
+                lines.append(f"Time: {timestamp}")
+            lines.append("Its screen details weren't saved. Restart memory recording and try again.")
+            return "\\n".join(lines)
     except sqlite3.OperationalError as exc:
         if "no such table" in str(exc).lower() or "no such column" in str(exc).lower():
-            return None
+            return "I couldn't find a saved activity database."
         raise
     finally:
         conn.close()
 
-    if not row:
-        return None
-
     timestamp, app, title, summary, ocr = row
-    details = (summary or ocr or "").strip()
-    if len(details) > 700:
-        details = details[:697].rstrip() + "..."
+    details = (ocr or summary or "").strip()
+    if details.lower() == "processing...":
+        details = ""
 
-    lines = ["Your most recently recorded computer activity (based on saved memory):"]
+    # Keep activity answers useful at a glance; don't dump the entire OCR capture.
+    if len(details) > 280:
+        details = details[:277].rsplit(" ", 1)[0].rstrip() + "..."
+
+    lines = ["Most recent completed computer activity:"]
     if timestamp:
         lines.append(f"Time: {timestamp}")
     if app:
-        lines.append(f"Application: {app}")
+        lines.append(f"App: {app}")
     if title:
         lines.append(f"Window: {title}")
     if details:
-        lines.extend(["", f"Details: {details}"])
+        lines.append(f"Details: {details}")
     else:
-        lines.extend(["", "No summary or screen text was saved for this memory."])
-    return "\n".join(lines)
-
+        lines.append("No readable screen details were captured.")
+    return "\\n".join(lines)
 
 def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread=8):
     """Answer from all stored memories, using Thought Threads as extra context."""
