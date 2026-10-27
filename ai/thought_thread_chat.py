@@ -257,14 +257,12 @@ def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread
     memory_context = "\n".join(context_parts)
 
     if not is_gemini_available():
-        lines = ["I found these relevant memories:", ""]
-        for score, timestamp, app, title, summary, ocr in hits:
-            lines.extend([
-                f"• {timestamp} — {app} — {title}",
-                f"  Relevance: {score:.2f}",
-                f"  {summary or ocr or 'No text summary available.'}",
-                "",
-            ])
+        lines = ["Relevant saved memories:"]
+        for score, timestamp, app, title, summary, ocr in hits[:3]:
+            detail = (summary or ocr or "No details saved.").strip().replace("\\n", " ")
+            if len(detail) > 180:
+                detail = detail[:177].rsplit(" ", 1)[0] + "..."
+            lines.append(f"• {timestamp} — {app} — {title}: {detail}")
         return "\n".join(lines)
 
     prompt = f"""
@@ -284,7 +282,7 @@ Recorded Memory Context:
 User Question:
 {question}
 
-Give a clear, useful answer grounded only in the recorded memories.
+Answer briefly and directly, usually in 1–4 sentences or a few short bullets. Only provide a long explanation if the user explicitly asks. Use only facts supported by the recorded memories.
 """
     try:
         response = generate_content(prompt, thinking_level="medium")
