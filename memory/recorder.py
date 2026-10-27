@@ -407,9 +407,19 @@ class MemoryRecorder:
                 # The first sample establishes the memory and may be considered
                 # for a thread. Later screen/OCR samples only enrich that record;
                 # they never create memories or increment thread counts.
-                embedding = create_embedding(
-                    local_summary + "\n" + merged_ocr_text
-                )
+                # Embedding/model setup can fail independently of OCR. Save the
+                # captured text even when vector indexing is unavailable so a
+                # pending placeholder never hides an otherwise useful activity.
+                try:
+                    embedding = create_embedding(
+                        local_summary + "\n" + merged_ocr_text
+                    )
+                except Exception as embedding_exc:
+                    print(
+                        "⚠️ Embedding generation failed; saving activity without "
+                        f"semantic index: {type(embedding_exc).__name__}: {embedding_exc}"
+                    )
+                    embedding = []
 
                 update_memory(
                     memory_id,
@@ -419,7 +429,7 @@ class MemoryRecorder:
                     0,
                     "",
                     last_seen=now,
-                    assign_to_thread=activity_started,
+                    assign_to_thread=activity_started and bool(embedding),
                 )
 
                 if activity_started:
