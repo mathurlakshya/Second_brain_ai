@@ -144,7 +144,7 @@ def _answer_with_latest_memory(user_id):
             if timestamp:
                 lines.append(f"Time: {timestamp}")
             lines.append("Its screen details weren't saved. Restart memory recording and try again.")
-            return "\\n".join(lines)
+            return "\n".join(lines)
     except sqlite3.OperationalError as exc:
         if "no such table" in str(exc).lower() or "no such column" in str(exc).lower():
             return "I couldn't find a saved activity database."
@@ -172,7 +172,7 @@ def _answer_with_latest_memory(user_id):
         lines.append(f"Details: {details}")
     else:
         lines.append("No readable screen details were captured.")
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread=8):
     """Answer from all stored memories, using Thought Threads as extra context."""
