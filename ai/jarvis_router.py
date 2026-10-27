@@ -93,6 +93,12 @@ _MEMORY_INTENT_PHRASES = (
     "my chatgpt conversations",
     "what did i discuss with chatgpt",
     "what did chatgpt and i discuss",
+    "memories i have made",
+    "memories i made",
+    "memories i created",
+    "last convers",
+    "topic of my last chatgpt",
+    "what topic did i discuss with chatgpt",
 )
 
 
