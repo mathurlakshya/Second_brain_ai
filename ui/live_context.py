@@ -3,7 +3,7 @@ import threading
 import time
 
 from vision.screenshot import capture_screen
-from ai.gemini import analyze_screen, ask_about_screen, save_context
+from ai.gemini import analyze_screen, ask_about_screen, save_context, is_gemini_available
 from ui.theme import BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER, TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT, ACCENT, ACCENT_HOVER
 
 
@@ -56,6 +56,11 @@ class LiveContext(ctk.CTkFrame):
         return panel
 
     def refresh_context(self):
+        if not is_gemini_available():
+            self.status.configure(text="● Gemini not configured", text_color="#F6C76A")
+            self.analysis_box.delete("1.0", "end")
+            self.analysis_box.insert("end", "Live Context uses Gemini only when you explicitly analyze the screen. Add GEMINI_API_KEY in .env to enable this feature.")
+            return
         self.status.configure(text="● Capturing...", text_color="#F6C76A")
         self.analysis_box.delete("1.0", "end")
         self.analysis_box.insert("end", "Capturing your desktop...\n\nPlease wait.")
@@ -67,9 +72,19 @@ class LiveContext(ctk.CTkFrame):
         time.sleep(0.8)
         image_path = capture_screen()
         self.after(0, app.deiconify)
-        result = analyze_screen(image_path)
-        save_context(result)
-        self.after(0, lambda: self.show_analysis(result))
+        try:
+            result = analyze_screen(image_path)
+            save_context(result)
+            self.after(0, lambda: self.show_analysis(result))
+        except Exception:
+            self.after(0, lambda: self.show_analysis("I could not analyze the screen right now. Please try again."))
+        finally:
+            try:
+                import os
+                if image_path and os.path.exists(image_path):
+                    os.remove(image_path)
+            except OSError:
+                pass
 
     def show_analysis(self, result):
         self.status.configure(text="● Screen Ready", text_color="#6EE7A8")
@@ -91,7 +106,7 @@ class LiveContext(ctk.CTkFrame):
         try:
             answer = ask_about_screen(question)
         except Exception as e:
-            answer = str(e)
+            answer = "I could not analyze the screen right now. Please try again."
         self.after(0, lambda: self.show_answer(answer))
 
     def show_answer(self, answer):

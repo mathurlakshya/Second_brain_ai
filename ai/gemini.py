@@ -2,7 +2,7 @@ from PIL import Image
 
 from config import GEMINI_API_KEY
 from ai.prompts import SYSTEM_PROMPT
-from database.query import get_recent_memories
+from database.database import get_recent_memories
 
 import time
 
@@ -51,6 +51,30 @@ MEMORY_CHAT_HISTORY = []
 # GEMINI REQUEST HELPER
 # ============================================================
 
+def format_api_error(error):
+    """Return a short, provider-neutral message for user-facing chat errors."""
+    import re
+    from datetime import datetime, timedelta
+
+    error_text = str(error or "")
+    normalized = error_text.lower()
+
+    if "429" in normalized or "resource_exhausted" in normalized or "quota exceeded" in normalized:
+        # Use a retry delay if the service provides one, without exposing vendor details.
+        retry_match = re.search(r"""retryDelay['"\s:]+([0-9]+(?:\.[0-9]+)?)s""", error_text, re.IGNORECASE)
+        if retry_match:
+            seconds = max(0, int(float(retry_match.group(1))))
+            reset_at = datetime.now().astimezone() + timedelta(seconds=seconds)
+            retry_time = reset_at.strftime("%I:%M %p %Z").strip()
+            return (
+                "You've exceeded your usage limits. Please try again at "
+                f"{retry_time}."
+            )
+        return "You've exceeded your usage limits. Please try again later."
+
+    return "Sorry, I couldn't respond right now. Please try again later."
+
+
 def generate_content(contents, thinking_level="low", max_retries=2):
 
     models_to_try = [
@@ -93,6 +117,15 @@ def generate_content(contents, thinking_level="low", max_retries=2):
 
                 last_error = e
                 error_text = str(e)
+                normalized_error = error_text.lower()
+
+                # Quota exhaustion will not improve by retrying or switching models.
+                if (
+                    "429" in error_text
+                    or "resource_exhausted" in normalized_error
+                    or "quota exceeded" in normalized_error
+                ):
+                    raise
 
                 if (
                     "503" in error_text
@@ -158,6 +191,9 @@ Previous Conversation:
 User:
 
 {question}
+
+Response length: Be concise by default (1–4 sentences or a few short bullets).
+Only provide a long explanation, detailed steps, or a tutorial when the user asks.
 """
 
     print("🚀 Sending request to Gemini...")
@@ -195,10 +231,7 @@ User:
             f"{type(e).__name__}: {e}"
         )
 
-        return (
-            "Sorry, I couldn't connect to Gemini right now.\n\n"
-            f"Error: {e}"
-        )
+        return format_api_error(e)
 
 
 # ============================================================
@@ -250,7 +283,7 @@ understand what it represents.
 If a slide is visible,
 summarize it.
 
-Return a detailed explanation of everything you understand.
+Return a concise summary of the key visible information. Keep it short unless the user asks for detail.
 
 This analysis will later be used to answer user questions.
 """
@@ -271,7 +304,7 @@ This analysis will later be used to answer user questions.
             f"❌ Vision analysis failed: {e}"
         )
 
-        return f"Vision Error: {e}"
+        return format_api_error(e)
 
 
 # ============================================================
@@ -331,7 +364,7 @@ Keep it concise.
             f"❌ Screen summary failed: {e}"
         )
 
-        return f"Summary Error: {e}"
+        return format_api_error(e)
 
 
 # ============================================================
@@ -381,7 +414,7 @@ Rules:
 - If there is an MCQ, explain why the correct answer is correct.
 - If there is a table, analyze it.
 
-Be detailed and educational.
+Be concise by default (1–4 sentences or a few short bullets). Expand only when the user explicitly asks for detail, steps, or a walkthrough.
 """
 
     try:
@@ -399,19 +432,16 @@ Be detailed and educational.
             f"❌ Current screen question failed: {e}"
         )
 
-        return (
-            "I couldn't analyze the current screen right now.\n\n"
-            f"Error: {e}"
-        )
+        return format_api_error(e)
 
 
 # ============================================================
 # ASK ABOUT RECENT MEMORIES
 # ============================================================
 
-def ask_memory(question):
+def ask_memory(question, user_id):
 
-    memories = get_recent_memories()
+    memories = get_recent_memories(user_id=user_id, limit=50)
 
     memory_text = ""
 
@@ -451,6 +481,8 @@ Answer ONLY using these memories.
 Question:
 
 {question}
+
+Answer briefly and directly by default. Only give a long explanation when the user asks for one.
 """
 
     try:
@@ -468,21 +500,18 @@ Question:
             f"❌ Memory question failed: {e}"
         )
 
-        return (
-            "I couldn't search your memories right now.\n\n"
-            f"Error: {e}"
-        )
+        return format_api_error(e)
 
 
 # ============================================================
 # SEMANTIC MEMORY CHAT
 # ============================================================
 
-def ask_memory_chat(question):
+def ask_memory_chat(question, user_id):
 
     from database.semantic_search import semantic_search
 
-    memories = semantic_search(question)
+    memories = semantic_search(question, user_id=user_id)
 
     memory_text = ""
 
@@ -579,7 +608,7 @@ User Question:
 
 {question}
 
-Give a detailed, easy-to-read answer.
+Answer in 1–4 sentences or a few short bullets by default. Be longer only if the user explicitly requests detail.
 """
 
     try:
@@ -614,7 +643,4 @@ Give a detailed, easy-to-read answer.
             f"❌ Memory chat failed: {e}"
         )
 
-        return (
-            "I couldn't answer from your memories right now.\n\n"
-            f"Error: {e}"
-        )
+        return format_api_error(e)

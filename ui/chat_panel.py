@@ -1,6 +1,6 @@
 import customtkinter as ctk
 import threading
-from ai.gemini import ask_jarvis
+from ai.jarvis_router import ask_jarvis_unified
 from ui.theme import BG, SURFACE, SURFACE_ALT, BORDER, BORDER_HOVER, TEXT, TEXT_MUTED, TEXT_SOFT, TEXT_DIM, TEXT_BRIGHT, ACCENT, ACCENT_HOVER
 
 
@@ -38,8 +38,9 @@ def format_response(text):
 
 class ChatPanel(ctk.CTkFrame):
 
-    def __init__(self, parent):
+    def __init__(self, parent, user_id=None):
         super().__init__(parent, fg_color="transparent", corner_radius=0)
+        self.user_id = user_id
 
         self.thinking = False
         self.thinking_step = 0
@@ -171,7 +172,7 @@ or anything happening on your computer.
 
     def get_answer(self, question):
         try:
-            answer = ask_jarvis(question)
+            answer = ask_jarvis_unified(question, self.user_id)
             answer = format_response(answer)
 
             print("=" * 50)

@@ -169,10 +169,11 @@ class ThoughtThreadsPage(ctk.CTkFrame):
         if not memories:
             self.detail_box.insert("end", "No memories are attached to this thread yet.")
         else:
-            for index, (timestamp, app, window_title, summary, ocr) in enumerate(memories):
+            for index, (timestamp, last_seen, app, window_title, summary, ocr) in enumerate(memories):
                 if index:
                     self.detail_box.insert("end", "\n" + "─" * 72 + "\n\n")
-                self.detail_box.insert("end", f"{timestamp}\n", ("time",))
+                time_range = timestamp if not last_seen or last_seen == timestamp else f"{timestamp}  →  {last_seen}"
+                self.detail_box.insert("end", f"{time_range}\n", ("time",))
                 self.detail_box.insert("end", f"{app}  ·  {window_title}\n\n", ("app",))
                 self.detail_box.insert("end", f"{summary or 'Processing...'}\n")
 

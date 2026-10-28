@@ -34,9 +34,8 @@ class Sidebar(ctk.CTkFrame):
         title.pack(pady=(30, 25))
 
         self.create_button("🏠 Dashboard", "dashboard")
-        self.create_button("🧠 Memory", "memory")
+        self.create_button("🧠 Memory Library", "memory")
         self.create_button("👁 Live Context", "live_context")
-        self.create_button("🔍 Search", "search")
         self.create_button("📜 Analytics", "analytics")
         self.create_button("⚙️ Settings", "settings")
 
@@ -76,16 +75,21 @@ class Sidebar(ctk.CTkFrame):
             self,
             fg_color="transparent"
         )
-        self.bottom_frame.pack(
-            side="bottom",
-            fill="x",
-            padx=0,
-            pady=(0, 15)
+        # Pin the account area to the sidebar itself instead of relying on
+        # pack order/expanding Thought Threads, which could push it out of view.
+        self.bottom_frame.place(
+            relx=0,
+            rely=1,
+            anchor="sw",
+            relwidth=1,
+            y=-12
         )
 
+        # Use one full-width account button so the username remains visible
+        # even when the sidebar is narrow or scaled by Windows display settings.
         self.account_button = ctk.CTkButton(
             self.bottom_frame,
-            text=f"👤  {self.username}  ▾",
+            text=f"👤  {str(self.username)[:18]}   ›",
             command=self.show_account_menu,
             height=42,
             corner_radius=10,
@@ -94,7 +98,8 @@ class Sidebar(ctk.CTkFrame):
             border_width=1,
             border_color=BORDER,
             text_color=TEXT_BRIGHT,
-            anchor="w"
+            anchor="w",
+            font=("Segoe UI", 12),
         )
         self.account_button.pack(fill="x", padx=15)
 
