@@ -112,14 +112,14 @@ def _is_memory_question(question):
     # Natural-language coverage for questions about specific apps, files, and
     # past actions. Keep ordinary educational prompts (e.g. "Explain RAG") out.
     asks_about_past = bool(re.search(
-        r"\\b(last|latest|most recent|ever|before|previous|past|history|"
+        r"\b(last|latest|most recent|ever|before|previous|past|history|"
         r"did i|have i|had i|was i|were you|what i|when i|where i|"
         r"worked|working|used|opened|created|made|saved|learned|learnt|"
         r"studied|watched|searched|discussed|doing)\\b", normalized
     ))
     personal_context = bool(re.search(
-        r"\\b(i|me|my|mine|computer|pc|laptop|chatgpt|chat gpt|openai|"
-        r"vs code|vscode|visual studio code|visual studio|code\\.exe|"
+        r"\b(i|me|my|mine|computer|pc|laptop|chatgpt|chat gpt|openai|"
+        r"vs code|vscode|visual studio code|visual studio|code\.exe|"
         r"chrome|browser|youtube|file|folder|app|application|website|screen|"
         r"memory|memories|activity|work|conversation|chat)\\b", normalized
     ))
