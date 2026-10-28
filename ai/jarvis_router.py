@@ -1,3 +1,4 @@
+import re
 """Route dashboard JARVIS messages to memory search only when requested."""
 
 _NO_MEMORY_MARKERS = (
@@ -103,9 +104,26 @@ _MEMORY_INTENT_PHRASES = (
 
 
 def _is_memory_question(question):
-    """Return True only for prompts that explicitly ask about personal history."""
+    """Detect personal-history questions even when phrased informally or with typos."""
     normalized = (question or "").strip().lower()
-    return any(phrase in normalized for phrase in _MEMORY_INTENT_PHRASES)
+    if any(phrase in normalized for phrase in _MEMORY_INTENT_PHRASES):
+        return True
+
+    # Natural-language coverage for questions about specific apps, files, and
+    # past actions. Keep ordinary educational prompts (e.g. "Explain RAG") out.
+    asks_about_past = bool(re.search(
+        r"\\b(last|latest|most recent|ever|before|previous|past|history|"
+        r"did i|have i|had i|was i|were you|what i|when i|where i|"
+        r"worked|working|used|opened|created|made|saved|learned|learnt|"
+        r"studied|watched|searched|discussed|doing)\\b", normalized
+    ))
+    personal_context = bool(re.search(
+        r"\\b(i|me|my|mine|computer|pc|laptop|chatgpt|chat gpt|openai|"
+        r"vs code|vscode|visual studio code|visual studio|code\\.exe|"
+        r"chrome|browser|youtube|file|folder|app|application|website|screen|"
+        r"memory|memories|activity|work|conversation|chat)\\b", normalized
+    ))
+    return asks_about_past and personal_context
 
 
 def _memory_answer_is_insufficient(answer):
