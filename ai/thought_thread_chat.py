@@ -127,7 +127,7 @@ def _answer_latest_matching_memory(question, user_id):
          if any(term in normalized for term in terms)),
         None,
     )
-    if not target or not re.search(r"\\b(last|latest|most recent|what did i do|what was i doing)\\b", normalized):
+    if not target or not re.search(r"\b(last|latest|most recent|what did i do|what was i doing)\\b", normalized):
         return None
 
     terms, label = target
