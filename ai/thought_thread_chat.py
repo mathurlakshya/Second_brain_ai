@@ -176,7 +176,7 @@ def _answer_latest_matching_memory(question, user_id):
         lines.append(f"Recorded details: {details}")
     else:
         lines.append("No readable screen details were captured for this record.")
-    return "\\n".join(lines)
+    return "\n".join(lines)
 
 
 def _answer_with_latest_memory(user_id):
@@ -351,7 +351,7 @@ def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread
     if not is_gemini_available():
         lines = ["Relevant saved memories:"]
         for score, timestamp, app, title, summary, ocr in hits[:3]:
-            detail = (summary or ocr or "No details saved.").strip().replace("\\n", " ")
+            detail = (summary or ocr or "No details saved.").strip().replace("\n", " ")
             if len(detail) > 180:
                 detail = detail[:177].rsplit(" ", 1)[0] + "..."
             lines.append(f"• {timestamp} — {app} — {title}: {detail}")
