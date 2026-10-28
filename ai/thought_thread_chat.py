@@ -113,6 +113,72 @@ def _is_latest_memory_question(question):
     return any(marker in normalized for marker in latest_markers)
 
 
+def _answer_latest_matching_memory(question, user_id):
+    """Answer 'last thing on <app/site>' from the newest matching saved record."""
+    normalized = (question or "").lower()
+    target_groups = (
+        (("chatgpt", "chat gpt", "openai"), "ChatGPT"),
+        (("vs code", "vscode", "visual studio code", "visual studio", "code.exe"), "VS Code"),
+        (("youtube",), "YouTube"),
+        (("chrome", "google chrome"), "Chrome"),
+    )
+    target = next(
+        ((terms, label) for terms, label in target_groups
+         if any(term in normalized for term in terms)),
+        None,
+    )
+    if not target or not re.search(r"\\b(last|latest|most recent|what did i do|what was i doing)\\b", normalized):
+        return None
+
+    terms, label = target
+    clauses = []
+    params = [user_id]
+    for term in terms:
+        clauses.append(
+            "(LOWER(COALESCE(app_name, '')) LIKE ? OR "
+            "LOWER(COALESCE(window_title, '')) LIKE ? OR "
+            "LOWER(COALESCE(summary, '')) LIKE ? OR "
+            "LOWER(COALESCE(ocr_text, '')) LIKE ?)"
+        )
+        params.extend([f"%{term.lower()}%"] * 4)
+
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        row = conn.execute(
+            "SELECT timestamp, app_name, window_title, summary, ocr_text "
+            "FROM memories WHERE user_id = ? AND (" + " OR ".join(clauses) + ") "
+            "ORDER BY timestamp DESC, id DESC LIMIT 1",
+            params,
+        ).fetchone()
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc).lower() or "no such column" in str(exc).lower():
+            return None
+        raise
+    finally:
+        conn.close()
+
+    if not row:
+        return f"I couldn't find a saved activity matching {label}."
+    timestamp, app, title, summary, ocr = row
+    details = (ocr or summary or "").strip()
+    if details.lower() == "processing...":
+        details = ""
+    if len(details) > 1200:
+        details = details[:1197].rsplit(" ", 1)[0] + "..."
+    lines = [f"Most recent saved activity matching {label}:"]
+    if timestamp:
+        lines.append(f"Time: {timestamp}")
+    if app:
+        lines.append(f"App: {app}")
+    if title:
+        lines.append(f"Window: {title}")
+    if details:
+        lines.append(f"Recorded details: {details}")
+    else:
+        lines.append("No readable screen details were captured for this record.")
+    return "\\n".join(lines)
+
+
 def _answer_with_latest_memory(user_id):
     """Return the newest completed memory; never present a placeholder as activity."""
     conn = sqlite3.connect(DB_PATH)
@@ -196,6 +262,12 @@ def ask_memory_thread_chat(question, user_id, max_threads=3, memories_per_thread
     # "Last/latest memory" is a chronological question, not a semantic-search
     # question. Fetch the newest record directly so similar older memories
     # cannot be mistaken for the latest activity.
+    # When a question names a particular app/site, scope "last" to that
+    # target instead of incorrectly returning the latest activity anywhere.
+    targeted_latest = _answer_latest_matching_memory(question, user_id)
+    if targeted_latest:
+        return targeted_latest
+
     if _is_latest_memory_question(question):
         latest_answer = _answer_with_latest_memory(user_id)
         if latest_answer:
